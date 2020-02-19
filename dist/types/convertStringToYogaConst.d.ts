@@ -1,0 +1,10 @@
+import { YogaJustifyContent, YogaAlign, YogaFlexDirection, YogaFlexWrap, YogaDisplay, YogaOverflow, YogaPositionType } from 'yoga-layout';
+export declare type FlexDirectionString = 'column-reverse' | 'row' | 'row-reverse' | 'column';
+export declare function convertFlexDirection(value: FlexDirectionString): YogaFlexDirection;
+export declare type JustifyContentString = 'center' | 'flex-end' | 'flex-start' | 'space-between' | 'space-around' | 'space-evenly';
+export declare function convertJustifyContent(value: JustifyContentString): YogaJustifyContent;
+export declare function convertAlign(value: string, defaultValue: YogaAlign): YogaAlign;
+export declare function convertPositionType(value: string): YogaPositionType;
+export declare function convertFlexWrap(value: string): YogaFlexWrap;
+export declare function convertOverflow(value: string): YogaOverflow;
+export declare function convertDisplay(value: string): YogaDisplay;
