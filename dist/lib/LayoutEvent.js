@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.mapEventType = {
     click: 1,
-    dblclick: 1,
     mousedown: 1,
     mousemove: 1,
     mouseup: 1
@@ -13,13 +12,13 @@ exports.mapEventType = {
         mouseover: 'onMouseOver',
     */
 };
-function bubbleEvent(e, node) {
-    var event = new LayoutEvent(e, e.type, node);
+function bubbleEvent(e, type, node) {
+    var event = new LayoutEvent(e, type, node);
     var current = node;
     while (current) {
-        if (current.$EV) {
+        if (current.$EV && current.$EV[type]) {
             event.currentTarget = current;
-            current.$EV[event.type].call(current, event);
+            current.$EV[type].call(current, event);
             if (event.cancelBubble) {
                 return;
             }

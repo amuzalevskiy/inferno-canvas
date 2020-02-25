@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var AnimationFrameHandler = /** @class */ (function () {
-    function AnimationFrameHandler() {
+    function AnimationFrameHandler(registry, enableTimeReport) {
         var _this = this;
         this._counter = 0;
         this._indexToCbMap = new Map();
@@ -10,8 +10,9 @@ var AnimationFrameHandler = /** @class */ (function () {
         this._views = [];
         this._callbacks = [];
         this.avgCycleTimeSpent = 0;
+        this.avgRenderCycleTimeSpent = 0;
         this._process = function () {
-            var now = performance.now();
+            var cycleStart = performance.now();
             _this._queued = false;
             _this._cycling = true;
             var callbacks = _this._callbacks;
@@ -20,8 +21,9 @@ var AnimationFrameHandler = /** @class */ (function () {
             // call before rendering
             for (var i = 0; i < callbacks.length; i++) {
                 var cb = callbacks[i];
-                cb(now);
+                cb(cycleStart);
             }
+            var renderingStart = performance.now();
             // render all dirty views
             for (var j = 0; j < _this._views.length; j++) {
                 var canvasView = _this._views[j];
@@ -31,16 +33,24 @@ var AnimationFrameHandler = /** @class */ (function () {
                     canvasView.doc.dirty = false;
                 }
             }
+            // remove unused nodes from yoga-layout
+            _this.registry.cleanup();
             _this._cycling = false;
             if (_this._queued) {
                 requestAnimationFrame(_this._process);
             }
-            var timeSpent = performance.now() - now;
-            _this.avgCycleTimeSpent = _this.avgCycleTimeSpent * 0.99 + timeSpent * 0.01;
+            var endTime = performance.now();
+            var timeSpent = endTime - cycleStart;
+            _this.avgCycleTimeSpent = _this.avgCycleTimeSpent * 0.995 + timeSpent * 0.005;
+            var renderingTimeSpent = endTime - renderingStart;
+            _this.avgRenderCycleTimeSpent = _this.avgRenderCycleTimeSpent * 0.995 + renderingTimeSpent * 0.005;
         };
-        setInterval(function () {
-            console.log("avg cycle time: " + _this.avgCycleTimeSpent.toFixed(1) + 'ms');
-        }, 2000);
+        this.registry = registry;
+        if (enableTimeReport) {
+            setInterval(function () {
+                console.log("CYCLE: full: " + _this.avgCycleTimeSpent.toFixed(1) + "ms, render: " + _this.avgRenderCycleTimeSpent.toFixed(1) + "ms (" + (_this.avgRenderCycleTimeSpent / _this.avgCycleTimeSpent * 100).toFixed(0) + "%)");
+            }, 2000);
+        }
     }
     AnimationFrameHandler.prototype._addView = function (view) {
         this._views.push(view);

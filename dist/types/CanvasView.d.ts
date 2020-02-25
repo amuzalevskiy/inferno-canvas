@@ -25,12 +25,13 @@ export declare class CanvasView {
         [eventName: string]: number;
     }): void;
     private _processEvent;
-    findHitTarget(e: MouseEvent): ILayoutNode | undefined;
-    _hitTest(e: MouseEvent, node: ILayoutNode, x: number, y: number, queue: ZIndexQueue): ILayoutNode | undefined;
+    findHitTarget(offsetX: number, offsetY: number): ILayoutNode | undefined;
+    _hitTest(offsetX: number, offsetY: number, node: ILayoutNode, x: number, y: number, queue: ZIndexQueue): ILayoutNode | undefined;
+    private _hitTestChildren;
     /**
      * Only builds ZIndex queue...
      */
-    private _hitTestBQ;
+    private _hitTestBuildZIndexQueue;
     private _trackMouseEnterAndLeave;
     private _layout;
     render(): void;

@@ -1,12 +1,11 @@
 import { ILayoutNode } from "./node";
 export declare const mapEventType: {
     click: number;
-    dblclick: number;
     mousedown: number;
     mousemove: number;
     mouseup: number;
 };
-export declare function bubbleEvent(e: Event, node: ILayoutNode): void;
+export declare function bubbleEvent(e: Event, type: string, node: ILayoutNode): void;
 export declare class LayoutEvent {
     originalEvent: Event;
     cancelBubble: boolean;

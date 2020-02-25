@@ -12,7 +12,6 @@ declare global {
                 key?: number | string;
                 children?: any;
                 onClick?: () => any;
-                onDblClick?: () => any;
                 onMouseDown?: () => any;
                 onMouseMove?: () => any;
                 onMouseUp?: () => any;
@@ -24,7 +23,6 @@ declare global {
                 key?: number | string;
                 content?: string;
                 onClick?: () => any;
-                onDblClick?: () => any;
                 onMouseDown?: () => any;
                 onMouseMove?: () => any;
                 onMouseUp?: () => any;

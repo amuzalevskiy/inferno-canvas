@@ -1,5 +1,7 @@
 import { CanvasView } from './CanvasView';
+import { CanvasElementRegistry } from './CanvasElementRegistry';
 type RafCallback = (now: number) => void;
+
 export class AnimationFrameHandler {
   private _counter = 0;
   private _indexToCbMap = new Map<number, RafCallback>()
@@ -8,11 +10,15 @@ export class AnimationFrameHandler {
   private _views: CanvasView[] = [];
   private _callbacks: RafCallback[] = [];
   private avgCycleTimeSpent = 0;
-
-  constructor() {
-    setInterval(() => {
-      console.log("avg cycle time: " + this.avgCycleTimeSpent.toFixed(1) + 'ms');
-    }, 2000);
+  private avgRenderCycleTimeSpent = 0;
+  private readonly registry: CanvasElementRegistry;
+  constructor(registry: CanvasElementRegistry, enableTimeReport: boolean) {
+    this.registry = registry;
+    if (enableTimeReport) {
+      setInterval(() => {
+        console.log("CYCLE: full: " + this.avgCycleTimeSpent.toFixed(1) + "ms, render: " + this.avgRenderCycleTimeSpent.toFixed(1) + "ms (" + (this.avgRenderCycleTimeSpent / this.avgCycleTimeSpent * 100).toFixed(0) + "%)");
+      }, 2000);
+    }
   }
 
   _addView(view: CanvasView) {
@@ -52,7 +58,7 @@ export class AnimationFrameHandler {
   }
   
   _process = () => {
-    let now = performance.now();
+    let cycleStart = performance.now();
     this._queued = false;
     this._cycling = true;
     let callbacks = this._callbacks;
@@ -62,8 +68,10 @@ export class AnimationFrameHandler {
     // call before rendering
     for (let i = 0; i < callbacks.length; i++) {
       const cb = callbacks[i];
-      cb(now);
+      cb(cycleStart);
     }
+
+    let renderingStart = performance.now();
 
     // render all dirty views
     for (let j = 0; j < this._views.length; j++) {
@@ -74,11 +82,19 @@ export class AnimationFrameHandler {
         canvasView.doc.dirty = false;
       }
     }
+    
+    // remove unused nodes from yoga-layout
+    this.registry.cleanup();
+
     this._cycling = false;
+
     if (this._queued) {
       requestAnimationFrame(this._process);
     }
-    let timeSpent = performance.now() - now;
-    this.avgCycleTimeSpent = this.avgCycleTimeSpent * 0.99 + timeSpent * 0.01;
+    let endTime = performance.now();
+    let timeSpent = endTime - cycleStart;
+    this.avgCycleTimeSpent = this.avgCycleTimeSpent * 0.995 + timeSpent * 0.005;
+    let renderingTimeSpent = endTime - renderingStart;
+    this.avgRenderCycleTimeSpent = this.avgRenderCycleTimeSpent * 0.995 + renderingTimeSpent * 0.005;
   }
 }
