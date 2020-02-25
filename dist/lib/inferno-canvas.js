@@ -10,10 +10,12 @@ exports.parseStyle = parseStyle_1.parseStyle;
 var CanvasView_1 = require("./CanvasView");
 var CanvasDocument_1 = require("./CanvasDocument");
 var AnimationFrameHandler_1 = require("./AnimationFrameHandler");
+var CanvasElementRegistry_1 = require("./CanvasElementRegistry");
+var registry = new CanvasElementRegistry_1.CanvasElementRegistry();
 inferno_1.setCreateElementFunction(function (type) {
-    return new CanvasElement_1.CanvasElement(type);
+    return new CanvasElement_1.CanvasElement(type, registry);
 });
-exports.animationFrameHandler = new AnimationFrameHandler_1.AnimationFrameHandler();
+exports.animationFrameHandler = new AnimationFrameHandler_1.AnimationFrameHandler(registry, true);
 // plans any function before next render
 function _requestAnimationFrame(cb) {
     exports.animationFrameHandler._checkEnqueued();
@@ -36,7 +38,7 @@ function mount(component, canvas, left, top, width, height) {
         canvasView_1.render();
         return;
     }
-    var canvasDOM = new CanvasElement_1.CanvasElement("root");
+    var canvasDOM = new CanvasElement_1.CanvasElement("root", registry);
     canvasDOM.style.setProperty("width", width);
     canvasDOM.style.setProperty("height", height);
     var canvasView = new CanvasView_1.CanvasView(canvas, canvasDOM, left, top, width, height);

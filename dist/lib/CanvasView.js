@@ -70,10 +70,40 @@ function drawImageWithCache(ctx, backgroundImage, sourceRect, targetRect) {
     var spec = defaultTextureAtlas.getImage(backgroundImage, sourceRect, targetRect);
     ctx.drawImage(spec.source, spec.left, spec.top, spec.width, spec.height, targetRect.left, targetRect.top, targetRect.width, targetRect.height);
 }
-function isPointInNode(ctx, borderRadius, layoutLeft, layoutTop, w, h, e) {
+function isPointInNode(ctx, borderRadius, layoutLeft, layoutTop, w, h, offsetX, offsetY) {
     renderUtils_1.closedInnerBorderPath(ctx, 0, 0, 0, 0, borderRadius, layoutLeft, layoutTop, w, h);
-    return ctx.isPointInPath(e.offsetX, e.offsetY) ? 1 : 0;
+    return ctx.isPointInPath(offsetX, offsetY) ? 1 : 0;
 }
+// source: https://github.com/Modernizr/Modernizr/blob/master/feature-detects/touchevents.js#L37
+function detectTouchDevice() {
+    if ('ontouchstart' in window ||
+        (window.DocumentTouch && document instanceof window.DocumentTouch)) {
+        return true;
+    }
+    var prefixes = ['', '-webkit-', '-moz-', '-o-', '-ms-', ''];
+    return window.matchMedia(['(', prefixes.join('touch-enabled),('), 'heartz', ')'].join('')).matches;
+}
+;
+function reverseObject(obj) {
+    var result = {};
+    for (var key in obj) {
+        result[obj[key]] = key;
+    }
+    return result;
+}
+var isTouchDevice = detectTouchDevice();
+var eventsMapping = isTouchDevice ? {
+    click: "click",
+    mousedown: "touchstart",
+    mousemove: "touchmove",
+    mouseup: "touchend",
+} : {
+    click: "click",
+    mousedown: "mousedown",
+    mousemove: "mousemove",
+    mouseup: "mouseup",
+};
+var reverseEventsMapping = reverseObject(eventsMapping);
 var CanvasView = /** @class */ (function () {
     function CanvasView(canvas, spec, left, top, width, height, direction, defaultLineHeightMultiplier) {
         var _this = this;
@@ -82,20 +112,34 @@ var CanvasView = /** @class */ (function () {
         this._direction = DIRECTION_LTR;
         this._listenersState = {
             click: false,
-            dblclick: false,
             mousedown: false,
             mousemove: false,
             mouseup: false
         };
         this._processEvent = function (e) {
-            var target = _this.findHitTarget(e);
-            if (e.type === "mousemove") {
+            var target;
+            if (e instanceof MouseEvent) {
+                target = _this.findHitTarget(e.offsetX, e.offsetY);
+            }
+            else {
+                var targetTouch = e.touches.item(0) ||
+                    e.changedTouches.item(0);
+                if (!targetTouch) {
+                    // no multi touch support
+                    return;
+                }
+                var canvasRect = _this._canvas.getBoundingClientRect();
+                var offsetX = targetTouch.clientX - canvasRect.left;
+                var offsetY = targetTouch.clientY - canvasRect.top;
+                target = _this.findHitTarget(offsetX, offsetY);
+            }
+            if (e.type === "mousemove" || e.type === "touchmove") {
                 _this._trackMouseEnterAndLeave(e, target);
             }
             if (!target) {
                 return;
             }
-            LayoutEvent_1.bubbleEvent(e, target);
+            LayoutEvent_1.bubbleEvent(e, reverseEventsMapping[e.type], target);
         };
         this._canvas = canvas;
         this._spec = spec;
@@ -124,7 +168,6 @@ var CanvasView = /** @class */ (function () {
         this.bindEventHandlers({
             // only these 5 are supported
             click: 0,
-            dblclick: 0,
             mousedown: 0,
             mousemove: 0,
             mouseup: 0
@@ -136,80 +179,59 @@ var CanvasView = /** @class */ (function () {
             if (nextListenersState[name_1]) {
                 if (!this._listenersState[name_1]) {
                     this._listenersState[name_1] = true;
-                    this._canvas.addEventListener(name_1, this._processEvent);
+                    this._canvas.addEventListener(eventsMapping[name_1], this._processEvent);
                 }
             }
             else {
                 if (this._listenersState[name_1]) {
                     this._listenersState[name_1] = false;
-                    this._canvas.removeEventListener(name_1, this._processEvent);
+                    this._canvas.removeEventListener(eventsMapping[name_1], this._processEvent);
                 }
             }
         }
     };
-    CanvasView.prototype.findHitTarget = function (e) {
+    CanvasView.prototype.findHitTarget = function (offsetX, offsetY) {
         // hits rendered region?
         var ctx = this._ctx;
         ctx.beginPath();
         ctx.rect(this.x, this.y, this._width, this._height);
-        if (!ctx.isPointInPath(e.offsetX, e.offsetY)) {
+        if (!ctx.isPointInPath(offsetX, offsetY)) {
             return;
         }
         var start = performance.now();
         var queue = new ZIndexQueue_1.ZIndexQueue();
-        var foundTarget = this._hitTest(e, this._spec, this.x, this.y, queue);
-        var queueTarget = queue.hitTest(e, this);
+        var foundTarget = this._hitTest(offsetX, offsetY, this._spec, this.x, this.y, queue);
+        var queueTarget = queue.hitTest(offsetX, offsetY, this);
         if (queueTarget) {
             foundTarget = queueTarget;
         }
         console.log("Hit test took " + (performance.now() - start).toFixed(1) + 'ms');
         return foundTarget;
     };
-    CanvasView.prototype._hitTest = function (e, node, x, y, queue) {
+    CanvasView.prototype._hitTest = function (offsetX, offsetY, node, x, y, queue) {
         var ctx = this._ctx;
-        var shouldClipChildren = node.style.overflow === OVERFLOW_HIDDEN || node.style.overflow === OVERFLOW_SCROLL;
+        var overflow = node.style.overflow;
+        var shouldClipChildren = overflow === OVERFLOW_HIDDEN || overflow === OVERFLOW_SCROLL;
         var _yogaNode = node._yogaNode;
         var layoutLeft = _yogaNode.getComputedLeft() + x, layoutTop = _yogaNode.getComputedTop() + y;
         var nodeMatch = -1;
         if (shouldClipChildren) {
-            nodeMatch = isPointInNode(ctx, node.style.borderRadius || 0, layoutLeft, layoutTop, _yogaNode.getComputedWidth(), _yogaNode.getComputedHeight(), e);
+            nodeMatch = isPointInNode(ctx, node.style.borderRadius || 0, layoutLeft, layoutTop, _yogaNode.getComputedWidth(), _yogaNode.getComputedHeight(), offsetX, offsetY);
             if (!nodeMatch) {
                 return;
             }
             queue = new ZIndexQueue_1.ZIndexQueue();
         }
-        // if item has border
-        // must verify if pointer is over border
-        // also nodeMatch has a different meaning,
-        // almost as overflow: hidden, but zIndex still should be investigated
-        var foundTarget;
-        if (node.children) {
-            for (var i = node.children.length - 1; i >= 0; i--) {
-                var childNode = node.children[i];
-                if (childNode.style.position === POSITION_TYPE_ABSOLUTE) {
-                    queue.unshift({
-                        node: childNode,
-                        x: layoutLeft,
-                        y: layoutTop,
-                    });
-                }
-                else if (!foundTarget) {
-                    foundTarget = this._hitTest(e, node.children[i], layoutLeft, layoutTop, queue);
-                }
-                else {
-                    this._hitTestBQ(node.children[i], layoutLeft, layoutTop, queue);
-                }
-            }
-        }
+        var foundTarget = this._hitTestChildren(node, queue, layoutLeft, layoutTop, offsetX, offsetY);
         if (shouldClipChildren) {
-            var queueTarget = queue.hitTest(e, this);
+            var queueTarget = queue.hitTest(offsetX, offsetY, this);
             if (queueTarget) {
                 foundTarget = queueTarget;
             }
         }
         if (!foundTarget) {
             if (nodeMatch === -1) {
-                nodeMatch = isPointInNode(ctx, node.style.borderRadius || 0, layoutLeft, layoutTop, _yogaNode.getComputedWidth(), _yogaNode.getComputedHeight(), e);
+                nodeMatch = isPointInNode(ctx, node.style.borderRadius || 0, layoutLeft, layoutTop, _yogaNode.getComputedWidth(), _yogaNode.getComputedHeight(), offsetX, offsetY);
             }
             if (nodeMatch) {
                 foundTarget = node;
@@ -217,16 +239,44 @@ var CanvasView = /** @class */ (function () {
         }
         return foundTarget;
     };
+    CanvasView.prototype._hitTestChildren = function (node, queue, layoutLeft, layoutTop, offsetX, offsetY) {
+        // if item has border
+        // must verify if pointer is over border
+        // also nodeMatch has a different meaning,
+        // almost as overflow: hidden, but zIndex still should be investigated
+        if (!node.children) {
+            return undefined;
+        }
+        var foundTarget;
+        for (var i = node.children.length - 1; i >= 0; i--) {
+            var childNode = node.children[i];
+            if (childNode.style.position === POSITION_TYPE_ABSOLUTE) {
+                queue.unshift({
+                    node: childNode,
+                    x: layoutLeft,
+                    y: layoutTop,
+                });
+            }
+            else if (!foundTarget) {
+                foundTarget = this._hitTest(offsetX, offsetY, node.children[i], layoutLeft, layoutTop, queue);
+            }
+            else {
+                this._hitTestBuildZIndexQueue(node.children[i], layoutLeft, layoutTop, queue);
+            }
+        }
+        return foundTarget;
+    };
     /**
      * Only builds ZIndex queue...
      */
-    CanvasView.prototype._hitTestBQ = function (node, x, y, queue) {
-        if (node.style.overflow === OVERFLOW_HIDDEN || node.style.overflow === OVERFLOW_SCROLL) {
+    CanvasView.prototype._hitTestBuildZIndexQueue = function (node, x, y, queue) {
+        var overflow = node.style.overflow;
+        if (overflow === OVERFLOW_HIDDEN || overflow === OVERFLOW_SCROLL) {
             return;
         }
-        var _yogaNode = node._yogaNode;
-        var layoutLeft = _yogaNode.getComputedLeft() + x, layoutTop = _yogaNode.getComputedTop() + y;
         if (node.children) {
+            var _yogaNode = node._yogaNode;
+            var layoutLeft = _yogaNode.getComputedLeft() + x, layoutTop = _yogaNode.getComputedTop() + y;
             for (var i = node.children.length - 1; i >= 0; i--) {
                 var childNode = node.children[i];
                 if (childNode.style.position === POSITION_TYPE_ABSOLUTE) {
@@ -237,7 +287,7 @@ var CanvasView = /** @class */ (function () {
                     });
                 }
                 else {
-                    this._hitTestBQ(node.children[i], layoutLeft, layoutTop, queue);
+                    this._hitTestBuildZIndexQueue(node.children[i], layoutLeft, layoutTop, queue);
                 }
             }
         }

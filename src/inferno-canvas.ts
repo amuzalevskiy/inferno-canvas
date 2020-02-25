@@ -6,9 +6,12 @@ import { parseStyle } from './parseStyle';
 import { CanvasView } from './CanvasView';
 import { CanvasDocument } from './CanvasDocument';
 import { AnimationFrameHandler } from './AnimationFrameHandler';
+import { CanvasElementRegistry } from './CanvasElementRegistry';
+
+const registry = new CanvasElementRegistry();
 
 setCreateElementFunction(function (type: string) {
-  return new CanvasElement(type);
+  return new CanvasElement(type, registry);
 });
 
 declare global { 
@@ -19,7 +22,6 @@ declare global {
         key?: number|string;
         children?: any;
         onClick?: () => any,
-        onDblClick?: () => any,
         onMouseDown?: () => any,
         onMouseMove?: () => any,
         onMouseUp?: () => any,
@@ -31,7 +33,6 @@ declare global {
         key?: number|string;
         content?: string;
         onClick?: () => any,
-        onDblClick?: () => any,
         onMouseDown?: () => any,
         onMouseMove?: () => any,
         onMouseUp?: () => any,
@@ -42,7 +43,7 @@ declare global {
   }
 }
 
-export let animationFrameHandler = new AnimationFrameHandler();
+export let animationFrameHandler = new AnimationFrameHandler(registry, true);
 
 // plans any function before next render
 function _requestAnimationFrame(cb: (time: number) => void) {
@@ -66,7 +67,7 @@ function mount(component: JSX.Element, canvas: HTMLCanvasElement, left: number, 
     return;
   }
   
-  let canvasDOM = new CanvasElement("root");
+  let canvasDOM = new CanvasElement("root", registry);
   canvasDOM.style.setProperty("width", width);
   canvasDOM.style.setProperty("height", height);
 

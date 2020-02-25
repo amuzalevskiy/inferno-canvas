@@ -1,4 +1,5 @@
 import { AnimationFrameHandler } from './AnimationFrameHandler';
+import { CanvasElement } from './CanvasElement';
 
 export class CanvasDocument {
   eventCounter: {

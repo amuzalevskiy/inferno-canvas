@@ -7,5 +7,5 @@ export declare class ZIndexQueue {
     unshift(nodeRenderSpec: IRenderSpec): void;
     private getOrCreateQueue;
     render(view: CanvasView): void;
-    hitTest(e: MouseEvent, view: CanvasView): ILayoutNode | undefined;
+    hitTest(offsetX: number, offsetY: number, view: CanvasView): ILayoutNode | undefined;
 }

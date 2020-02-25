@@ -2,7 +2,6 @@ import { ILayoutNode } from "./node";
 
 export const mapEventType = {
   click: 1,
-  dblclick: 1,
   mousedown: 1,
   mousemove: 1,
   mouseup: 1
@@ -14,13 +13,13 @@ export const mapEventType = {
   */
 };
 
-export function bubbleEvent(e: Event, node: ILayoutNode) {
-  let event = new LayoutEvent(e, e.type, node);
+export function bubbleEvent(e: Event, type: string, node: ILayoutNode) {
+  let event = new LayoutEvent(e, type, node);
   let current: ILayoutNode|undefined = node;
   while (current) {
-    if (current.$EV) {
+    if (current.$EV && current.$EV[type]) {
       event.currentTarget = current;
-      current.$EV[event.type].call(current, event);
+      current.$EV[type].call(current, event);
       if (event.cancelBubble) {
         return;
       }

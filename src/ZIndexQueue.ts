@@ -47,7 +47,7 @@ export class ZIndexQueue {
         }
     }
 
-    hitTest(e: MouseEvent, view: CanvasView): ILayoutNode | undefined {
+    hitTest(offsetX: number, offsetY: number, view: CanvasView): ILayoutNode | undefined {
         if (this.empty) {
             return;
         }
@@ -62,8 +62,8 @@ export class ZIndexQueue {
                 // all inner items has its own zIndex Queue
                 queue = new ZIndexQueue();
                 // must execute to fill ZIndexQueue
-                let foundTarget = view._hitTest(e, spec.node, spec.x, spec.y, queue);
-                let queueFoundTarget = queue.hitTest(e, view);
+                let foundTarget = view._hitTest(offsetX, offsetY, spec.node, spec.x, spec.y, queue);
+                let queueFoundTarget = queue.hitTest(offsetX, offsetY, view);
                 return queueFoundTarget ? queueFoundTarget : foundTarget;
             }
         }

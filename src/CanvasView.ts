@@ -110,10 +110,46 @@ function drawImageWithCache(ctx: CanvasRenderingContext2D, backgroundImage: HTML
   );
 }
 
-function isPointInNode(ctx: CanvasRenderingContext2D, borderRadius: number, layoutLeft: number, layoutTop: number, w: number, h: number, e: MouseEvent): number {
+function isPointInNode(ctx: CanvasRenderingContext2D, borderRadius: number, layoutLeft: number, layoutTop: number, w: number, h: number, offsetX: number, offsetY: number): number {
   closedInnerBorderPath(ctx, 0, 0, 0, 0, borderRadius, layoutLeft, layoutTop, w, h);
-  return ctx.isPointInPath(e.offsetX, e.offsetY) ? 1 : 0;
+  return ctx.isPointInPath(offsetX, offsetY) ? 1 : 0;
 }
+
+// source: https://github.com/Modernizr/Modernizr/blob/master/feature-detects/touchevents.js#L37
+function detectTouchDevice() {
+  if (
+    'ontouchstart' in window ||
+    ((window as any).DocumentTouch && document instanceof (window as any).DocumentTouch)
+  ) {
+    return true;
+  }
+  const prefixes = ['', '-webkit-', '-moz-', '-o-', '-ms-', ''];
+  return (window as any).matchMedia(['(', prefixes.join('touch-enabled),('), 'heartz', ')'].join('')).matches;
+};
+
+function reverseObject(obj: {[key: string]: string}) {
+  let result: {[eventName: string]: string} = {};
+  for(let key in obj) {
+    result[obj[key]] = key;
+  }
+  return result;
+}
+
+const isTouchDevice = detectTouchDevice();
+
+const eventsMapping: {[eventName: string]: string} = isTouchDevice ? {
+  click: "click",
+  mousedown: "touchstart",
+  mousemove: "touchmove",
+  mouseup: "touchend",
+} : {
+  click: "click",
+  mousedown: "mousedown",
+  mousemove: "mousemove",
+  mouseup: "mouseup",
+};
+
+const reverseEventsMapping = reverseObject(eventsMapping);
 
 export class CanvasView {
   public doc!: CanvasDocument;
@@ -130,7 +166,6 @@ export class CanvasView {
 
   private _listenersState: IListenersState = {
     click: false,
-    dblclick: false,
     mousedown: false,
     mousemove: false,
     mouseup: false
@@ -187,7 +222,6 @@ export class CanvasView {
     this.bindEventHandlers({
       // only these 5 are supported
       click: 0,
-      dblclick: 0,
       mousedown: 0,
       mousemove: 0,
       mouseup: 0
@@ -199,41 +233,57 @@ export class CanvasView {
       if (nextListenersState[name]) {
         if (!this._listenersState[name]) {
           this._listenersState[name] = true;
-          this._canvas.addEventListener(name as any, this._processEvent);
+          this._canvas.addEventListener(eventsMapping[name] as any, this._processEvent);
         }
       } else {
         if (this._listenersState[name]) {
           this._listenersState[name] = false;
-          this._canvas.removeEventListener(name as any, this._processEvent);
+          this._canvas.removeEventListener(eventsMapping[name] as any, this._processEvent);
         }
       }
     }
   }
 
-  private _processEvent = (e: MouseEvent) => {
-    let target = this.findHitTarget(e);
-    if (e.type === "mousemove") {
+  private _processEvent = (e: MouseEvent | TouchEvent) => {
+    let target: ILayoutNode | undefined;
+    if (e instanceof MouseEvent) {
+      target = this.findHitTarget(e.offsetX, e.offsetY);
+    } else {
+      const targetTouch = 
+        e.touches.item(0) ||
+        e.changedTouches.item(0);
+      if (!targetTouch) {
+        // no multi touch support
+        return;
+      }
+      const canvasRect = this._canvas.getBoundingClientRect();
+      const offsetX = targetTouch.clientX - canvasRect.left;
+      const offsetY = targetTouch.clientY - canvasRect.top;
+      target = this.findHitTarget(offsetX, offsetY);
+    }
+    
+    if (e.type === "mousemove" || e.type === "touchmove" ) {
       this._trackMouseEnterAndLeave(e, target);
     }
     if (!target) {
       return;
     }
-    bubbleEvent(e, target);
+    bubbleEvent(e, reverseEventsMapping[e.type], target);
   }
 
-  public findHitTarget(e: MouseEvent): ILayoutNode | undefined {
+  public findHitTarget(offsetX: number, offsetY: number): ILayoutNode | undefined {
     // hits rendered region?
     let ctx = this._ctx;
     ctx.beginPath();
     ctx.rect(this.x, this.y, this._width, this._height);
-    if (!ctx.isPointInPath(e.offsetX, e.offsetY)) {
+    if (!ctx.isPointInPath(offsetX, offsetY)) {
       return;
     }
 
     let start = performance.now();
     var queue = new ZIndexQueue();
-    let foundTarget = this._hitTest(e, this._spec, this.x, this.y, queue);
-    let queueTarget = queue.hitTest(e, this);
+    let foundTarget = this._hitTest(offsetX, offsetY, this._spec, this.x, this.y, queue);
+    let queueTarget = queue.hitTest(offsetX, offsetY, this);
     if (queueTarget) {
       foundTarget = queueTarget;
     }
@@ -244,64 +294,33 @@ export class CanvasView {
   }
 
   public _hitTest(
-    e: MouseEvent,
+    offsetX: number, offsetY: number,
     node: ILayoutNode,
     x: number,
     y: number,
     queue: ZIndexQueue
   ): ILayoutNode | undefined {
-    var ctx = this._ctx;
-    var shouldClipChildren = node.style.overflow === OVERFLOW_HIDDEN || node.style.overflow === OVERFLOW_SCROLL;
-    let _yogaNode = node._yogaNode;
-    var layoutLeft = _yogaNode.getComputedLeft() + x,
+    const ctx = this._ctx;
+    const overflow = node.style.overflow;
+    const shouldClipChildren = overflow === OVERFLOW_HIDDEN || overflow === OVERFLOW_SCROLL;
+    const _yogaNode = node._yogaNode;
+    const layoutLeft = _yogaNode.getComputedLeft() + x,
       layoutTop = _yogaNode.getComputedTop() + y;
     
     var nodeMatch: number = -1;
     
     if (shouldClipChildren) {
-      nodeMatch = isPointInNode(ctx, node.style.borderRadius || 0, layoutLeft, layoutTop, _yogaNode.getComputedWidth(), _yogaNode.getComputedHeight(), e);
+      nodeMatch = isPointInNode(ctx, node.style.borderRadius || 0, layoutLeft, layoutTop, _yogaNode.getComputedWidth(), _yogaNode.getComputedHeight(), offsetX, offsetY);
       if (!nodeMatch) {
         return;
       }
       queue = new ZIndexQueue();
     }
 
-    // if item has border
-    // must verify if pointer is over border
-    // also nodeMatch has a different meaning,
-    // almost as overflow: hidden, but zIndex still should be investigated
-
-    let foundTarget: ILayoutNode | undefined;
-    if (node.children) {
-      for (var i = node.children.length - 1; i >= 0; i--) {
-        var childNode = node.children[i];
-        if (childNode.style.position === POSITION_TYPE_ABSOLUTE) {
-          queue.unshift({
-            node: childNode,
-            x: layoutLeft,
-            y: layoutTop,
-          });
-        } else if (!foundTarget) {
-          foundTarget = this._hitTest(
-            e,
-            node.children[i],
-            layoutLeft,
-            layoutTop,
-            queue
-          );
-        } else {
-          this._hitTestBQ(
-            node.children[i],
-            layoutLeft,
-            layoutTop,
-            queue
-          );
-        }
-      }
-    }
+    let foundTarget = this._hitTestChildren(node, queue, layoutLeft, layoutTop, offsetX, offsetY);
     
     if (shouldClipChildren) {
-      let queueTarget = queue.hitTest(e, this);
+      let queueTarget = queue.hitTest(offsetX, offsetY, this);
       if (queueTarget) {
         foundTarget = queueTarget;
       }
@@ -309,7 +328,7 @@ export class CanvasView {
 
     if (!foundTarget) {
       if (nodeMatch === -1) {
-        nodeMatch = isPointInNode(ctx, node.style.borderRadius || 0, layoutLeft, layoutTop, _yogaNode.getComputedWidth(), _yogaNode.getComputedHeight(), e);
+        nodeMatch = isPointInNode(ctx, node.style.borderRadius || 0, layoutLeft, layoutTop, _yogaNode.getComputedWidth(), _yogaNode.getComputedHeight(), offsetX, offsetY);
       }
       if (nodeMatch) {
         foundTarget = node;
@@ -319,24 +338,54 @@ export class CanvasView {
     return foundTarget;
   }
 
+  private _hitTestChildren(node: ILayoutNode, queue: ZIndexQueue, layoutLeft: number, layoutTop: number, offsetX: number, offsetY: number) {
+    
+    // if item has border
+    // must verify if pointer is over border
+    // also nodeMatch has a different meaning,
+    // almost as overflow: hidden, but zIndex still should be investigated
+
+    if (!node.children) {
+      return undefined;
+    }
+    let foundTarget: ILayoutNode | undefined;
+    for (var i = node.children.length - 1; i >= 0; i--) {
+      var childNode = node.children[i];
+      if (childNode.style.position === POSITION_TYPE_ABSOLUTE) {
+        queue.unshift({
+          node: childNode,
+          x: layoutLeft,
+          y: layoutTop,
+        });
+      }
+      else if (!foundTarget) {
+        foundTarget = this._hitTest(offsetX, offsetY, node.children[i], layoutLeft, layoutTop, queue);
+      }
+      else {
+        this._hitTestBuildZIndexQueue(node.children[i], layoutLeft, layoutTop, queue);
+      }
+    }
+    return foundTarget;
+  }
+
   /**
    * Only builds ZIndex queue...
    */
-  private _hitTestBQ(
+  private _hitTestBuildZIndexQueue(
     node: ILayoutNode,
     x: number,
     y: number,
     queue: ZIndexQueue
   ): void {
-    if (node.style.overflow === OVERFLOW_HIDDEN || node.style.overflow === OVERFLOW_SCROLL) {
+    const overflow = node.style.overflow;
+    if (overflow === OVERFLOW_HIDDEN || overflow === OVERFLOW_SCROLL) {
       return;
     }
 
-    let _yogaNode = node._yogaNode;
-    var layoutLeft = _yogaNode.getComputedLeft() + x,
-      layoutTop = _yogaNode.getComputedTop() + y;
-
     if (node.children) {
+      const _yogaNode = node._yogaNode;
+      const layoutLeft = _yogaNode.getComputedLeft() + x,
+        layoutTop = _yogaNode.getComputedTop() + y;
       for (var i = node.children.length - 1; i >= 0; i--) {
         var childNode = node.children[i];
         if (childNode.style.position === POSITION_TYPE_ABSOLUTE) {
@@ -346,7 +395,7 @@ export class CanvasView {
             y: layoutTop,
           });
         } else {
-          this._hitTestBQ(
+          this._hitTestBuildZIndexQueue(
             node.children[i],
             layoutLeft,
             layoutTop,

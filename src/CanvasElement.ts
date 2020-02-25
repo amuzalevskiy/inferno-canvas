@@ -24,6 +24,7 @@ const {
 
 import {IStyleProps, TEXT_ALIGN, VERTICAL_ALIGN, ILayoutNode} from "./node";
 import { measureText, countLines } from "./renderUtils";
+import { CanvasElementRegistry } from "./CanvasElementRegistry";
 
 
 const YGMeasureModeUndefined = 0,
@@ -366,25 +367,30 @@ class Style implements IStyleProps {
   }
 }
 export class CanvasElement implements ILayoutNode {
+    readonly registry: CanvasElementRegistry;
     readonly nodeName: string;
-    constructor(nodeName: string) {
+    constructor(nodeName: string, registry: CanvasElementRegistry) {
         this.nodeName = nodeName;
+        this.registry = registry;
         this._yogaNode = Node.create();
         this.style = new Style(this);
     }
 
     free() {
-        this._yogaNode.freeRecursive();
+        if (this._yogaNode) {
+            this._yogaNode.freeRecursive();
+        }
     }
 
     public parentNode?: CanvasElement;
-    _yogaNode: YogaNode;
+    public _yogaNode: YogaNode;
 
     public children: CanvasElement[] | undefined;
     public style: Style;
     public content?: string;
 
     public _doc: any;
+    public $EV?: {[name: string]: () => any}
 
     set innerHTML(value: string) {
         throw new Error("Unsupported operation.");
@@ -466,6 +472,8 @@ export class CanvasElement implements ILayoutNode {
             this._doc.markDirty();
         }
 
+        this._verifyElementDetached(child);
+
         if (!this.children) {
             this.children = [];
         }
@@ -476,10 +484,13 @@ export class CanvasElement implements ILayoutNode {
         child._setDoc(this._doc);
     }
     
+
     insertBefore(newNode: CanvasElement, nextNode: CanvasElement) {
         if (this._doc) {
             this._doc.markDirty();
         }
+
+        this._verifyElementDetached(newNode);
 
         if (!this.children) {
             this.children = [];
@@ -502,6 +513,8 @@ export class CanvasElement implements ILayoutNode {
             this._doc.markDirty();
         }
 
+        this._verifyElementDetached(newDom);
+
         // optimized, guaranteed by inferno
         // if (!this.children) {
         //     this.children = [];
@@ -509,12 +522,9 @@ export class CanvasElement implements ILayoutNode {
 
         let index = this.children!.indexOf(lastDom);
         if (index !== -1) {
-            this._yogaNode.removeChild(lastDom._yogaNode);
-            lastDom.free();
-            // required to count events
-            lastDom._setDoc(undefined);
+            this.removeChild(lastDom);
             this._yogaNode.insertChild(newDom._yogaNode, index);
-            this.children!.splice(index, 1, newDom);
+            this.children!.splice(index, 0, newDom);
         }
     }
 
@@ -533,13 +543,12 @@ export class CanvasElement implements ILayoutNode {
             this._yogaNode.removeChild(childNode._yogaNode);
             this.children!.splice(index, 1);
             childNode.parentNode = undefined;
-            childNode.free();
+            this.registry.addNodeToCleanupQueue(childNode);
             // required to count events
             childNode._setDoc(undefined);
         }
     }
 
-    $EV?: {[name: string]: () => any}
     /*
      * EVENTS implementation
      */
@@ -564,5 +573,15 @@ export class CanvasElement implements ILayoutNode {
         // }
         delete this.$EV![name];
         this._doc.removeEvent(name);
+    }
+
+    /**
+     * Verify that child is detached
+     */
+    private _verifyElementDetached(child: CanvasElement) {
+        if (child.parentNode !== undefined) {
+            child.parentNode.removeChild(child);
+        }
+        this.registry.removeNodeFromCleanupQueue(child);
     }
 }

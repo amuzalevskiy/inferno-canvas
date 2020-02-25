@@ -245,13 +245,16 @@ var Style = /** @class */ (function () {
     return Style;
 }());
 var CanvasElement = /** @class */ (function () {
-    function CanvasElement(nodeName) {
+    function CanvasElement(nodeName, registry) {
         this.nodeName = nodeName;
+        this.registry = registry;
         this._yogaNode = Node.create();
         this.style = new Style(this);
     }
     CanvasElement.prototype.free = function () {
-        this._yogaNode.freeRecursive();
+        if (this._yogaNode) {
+            this._yogaNode.freeRecursive();
+        }
     };
     Object.defineProperty(CanvasElement.prototype, "innerHTML", {
         set: function (value) {
@@ -331,6 +334,7 @@ var CanvasElement = /** @class */ (function () {
         if (this._doc) {
             this._doc.markDirty();
         }
+        this._verifyElementDetached(child);
         if (!this.children) {
             this.children = [];
         }
@@ -343,6 +347,7 @@ var CanvasElement = /** @class */ (function () {
         if (this._doc) {
             this._doc.markDirty();
         }
+        this._verifyElementDetached(newNode);
         if (!this.children) {
             this.children = [];
         }
@@ -362,18 +367,16 @@ var CanvasElement = /** @class */ (function () {
         if (this._doc) {
             this._doc.markDirty();
         }
+        this._verifyElementDetached(newDom);
         // optimized, guaranteed by inferno
         // if (!this.children) {
         //     this.children = [];
         // }
         var index = this.children.indexOf(lastDom);
         if (index !== -1) {
-            this._yogaNode.removeChild(lastDom._yogaNode);
-            lastDom.free();
-            // required to count events
-            lastDom._setDoc(undefined);
+            this.removeChild(lastDom);
             this._yogaNode.insertChild(newDom._yogaNode, index);
-            this.children.splice(index, 1, newDom);
+            this.children.splice(index, 0, newDom);
         }
     };
     CanvasElement.prototype.removeChild = function (childNode) {
@@ -389,7 +392,7 @@ var CanvasElement = /** @class */ (function () {
             this._yogaNode.removeChild(childNode._yogaNode);
             this.children.splice(index, 1);
             childNode.parentNode = undefined;
-            childNode.free();
+            this.registry.addNodeToCleanupQueue(childNode);
             // required to count events
             childNode._setDoc(undefined);
         }
@@ -417,6 +420,15 @@ var CanvasElement = /** @class */ (function () {
         // }
         delete this.$EV[name];
         this._doc.removeEvent(name);
+    };
+    /**
+     * Verify that child is detached
+     */
+    CanvasElement.prototype._verifyElementDetached = function (child) {
+        if (child.parentNode !== undefined) {
+            child.parentNode.removeChild(child);
+        }
+        this.registry.removeNodeFromCleanupQueue(child);
     };
     return CanvasElement;
 }());

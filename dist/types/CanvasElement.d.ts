@@ -1,5 +1,6 @@
 import { YogaNode, YogaFlexDirection, YogaJustifyContent, YogaAlign, YogaPositionType, YogaFlexWrap, YogaOverflow, YogaDisplay } from "yoga-layout";
 import { IStyleProps, TEXT_ALIGN, VERTICAL_ALIGN, ILayoutNode } from "./node";
+import { CanvasElementRegistry } from "./CanvasElementRegistry";
 declare class Style implements IStyleProps {
     el: CanvasElement;
     flex?: number;
@@ -83,8 +84,9 @@ declare class Style implements IStyleProps {
     };
 }
 export declare class CanvasElement implements ILayoutNode {
+    readonly registry: CanvasElementRegistry;
     readonly nodeName: string;
-    constructor(nodeName: string);
+    constructor(nodeName: string, registry: CanvasElementRegistry);
     free(): void;
     parentNode?: CanvasElement;
     _yogaNode: YogaNode;
@@ -92,6 +94,9 @@ export declare class CanvasElement implements ILayoutNode {
     style: Style;
     content?: string;
     _doc: any;
+    $EV?: {
+        [name: string]: () => any;
+    };
     set innerHTML(value: string);
     set textContent(value: string);
     _setDoc(doc: any): void;
@@ -101,10 +106,11 @@ export declare class CanvasElement implements ILayoutNode {
     insertBefore(newNode: CanvasElement, nextNode: CanvasElement): void;
     replaceChild(newDom: CanvasElement, lastDom: CanvasElement): void;
     removeChild(childNode: CanvasElement): void;
-    $EV?: {
-        [name: string]: () => any;
-    };
     addEventListener(name: string, fn: () => any): void;
     removeEventListener(name: string, fn: () => any): void;
+    /**
+     * Verify that child is detached
+     */
+    private _verifyElementDetached;
 }
 export {};

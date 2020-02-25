@@ -1,4 +1,5 @@
 import { CanvasView } from './CanvasView';
+import { CanvasElementRegistry } from './CanvasElementRegistry';
 declare type RafCallback = (now: number) => void;
 export declare class AnimationFrameHandler {
     private _counter;
@@ -8,7 +9,9 @@ export declare class AnimationFrameHandler {
     private _views;
     private _callbacks;
     private avgCycleTimeSpent;
-    constructor();
+    private avgRenderCycleTimeSpent;
+    private readonly registry;
+    constructor(registry: CanvasElementRegistry, enableTimeReport: boolean);
     _addView(view: CanvasView): void;
     _removeView(view: CanvasView): void;
     _checkEnqueued(): void;

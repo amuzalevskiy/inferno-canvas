@@ -43,7 +43,7 @@ var ZIndexQueue = /** @class */ (function () {
             }
         }
     };
-    ZIndexQueue.prototype.hitTest = function (e, view) {
+    ZIndexQueue.prototype.hitTest = function (offsetX, offsetY, view) {
         if (this.empty) {
             return;
         }
@@ -58,8 +58,8 @@ var ZIndexQueue = /** @class */ (function () {
                 // all inner items has its own zIndex Queue
                 queue = new ZIndexQueue();
                 // must execute to fill ZIndexQueue
-                var foundTarget = view._hitTest(e, spec.node, spec.x, spec.y, queue);
-                var queueFoundTarget = queue.hitTest(e, view);
+                var foundTarget = view._hitTest(offsetX, offsetY, spec.node, spec.x, spec.y, queue);
+                var queueFoundTarget = queue.hitTest(offsetX, offsetY, view);
                 return queueFoundTarget ? queueFoundTarget : foundTarget;
             }
         }
