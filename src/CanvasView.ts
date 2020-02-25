@@ -644,6 +644,11 @@ export class CanvasView {
     node: ILayoutNode,
     left: number, top: number, width: number, height: number
   ) {
+    const _yogaNode = node._yogaNode;
+    var paddingLeft = _yogaNode.getComputedPadding(EDGE_LEFT),
+      paddingTop = _yogaNode.getComputedPadding(EDGE_TOP),
+      paddingRight = _yogaNode.getComputedPadding(EDGE_RIGHT),
+      paddingBottom = _yogaNode.getComputedPadding(EDGE_BOTTOM);
     const style = node.style;
     if (!style.color || !style.font || style.fontSize === undefined) {
       // unable to render
@@ -665,7 +670,10 @@ export class CanvasView {
       renderMultilineText(
         ctx,
         node.content!,
-        left, top, width, height,
+        left + paddingLeft,
+        top + paddingTop,
+        width - paddingLeft - paddingRight,
+        height - paddingTop - paddingBottom,
         style.lineHeight
           ? style.lineHeight
           : style.fontSize * this._defaultLineHeightMultiplier,
@@ -677,8 +685,11 @@ export class CanvasView {
     } else {
       renderText(
         ctx,
-        node.content!,
-        left, top, width, height,
+        node.content!,    
+        left + paddingLeft,
+        top + paddingTop,
+        width - paddingLeft - paddingRight,
+        height - paddingTop - paddingBottom,
         style.textAlign,
         style.verticalAlign,
         style.textOverflow === "ellipsis" ? ellipsis : style.textOverflow,
