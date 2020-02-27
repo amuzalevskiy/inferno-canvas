@@ -16,8 +16,7 @@ export declare class CanvasView {
     private _direction;
     private _previousTarget;
     private _listenersState;
-    private _contexts;
-    private _lastContext;
+    private _lastCachedContext;
     constructor(canvas: HTMLCanvasElement, spec: CanvasElement, left: number, top: number, width: number, height: number, direction?: YogaDirection, defaultLineHeightMultiplier?: number);
     _setDoc(doc: CanvasDocument): void;
     setTargetRegion(left: number, top: number, width: number, height: number): void;

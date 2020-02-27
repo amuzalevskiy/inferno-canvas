@@ -8,6 +8,7 @@ var renderQueue_1 = require("./renderQueue");
 var ZIndexQueue_1 = require("./ZIndexQueue");
 var LayoutEvent_1 = require("./LayoutEvent");
 var TextureAtlas_1 = require("./TextureAtlas");
+var CachedCanvasContext_1 = require("./CachedCanvasContext");
 var ellipsis = String.fromCharCode(0x2026);
 var defaultImageCache = ImageCache_1.ImageCache.createBasketsImageCache({
     basketLifetime: 1500,
@@ -116,7 +117,6 @@ var CanvasView = /** @class */ (function () {
             mousemove: false,
             mouseup: false
         };
-        this._contexts = [];
         this._processEvent = function (e) {
             var target;
             if (e instanceof MouseEvent) {
@@ -146,11 +146,7 @@ var CanvasView = /** @class */ (function () {
         this._spec = spec;
         this._processEvent = this._processEvent.bind(this);
         this._ctx = canvas.getContext("2d");
-        this._lastContext = {
-            font: this._ctx.font,
-            fill: this._ctx.fillStyle,
-        };
-        this._contexts.push(this._lastContext);
+        this._lastCachedContext = new CachedCanvasContext_1.CachedCanvasContext(this._ctx, this._ctx);
         this._defaultLineHeightMultiplier = defaultLineHeightMultiplier;
         this.x = left;
         this.y = top;
@@ -357,10 +353,7 @@ var CanvasView = /** @class */ (function () {
                 borderBottom > 0 ||
                 borderRight > 0);
         if (style.background) {
-            if (style.background !== this._lastContext.fill) {
-                this._lastContext.fill = style.background;
-                ctx.fillStyle = style.background;
-            }
+            this._lastCachedContext.setFillStyle(style.background);
             if (borderRadius > 0) {
                 if (hasBorder) {
                     // the only found way to fix rendering artifacts with rounded borders
@@ -457,22 +450,15 @@ var CanvasView = /** @class */ (function () {
             return;
         }
         var ctx = this._ctx;
-        if (style.color !== this._lastContext.fill) {
-            this._lastContext.fill = style.color;
-            ctx.fillStyle = style.color;
-        }
-        var font = style.fontSize + "px " + style.font;
-        if (font !== this._lastContext.font) {
-            this._lastContext.font = font;
-            ctx.font = font;
-        }
+        this._lastCachedContext.setFillStyle(style.color);
+        this._lastCachedContext.setFont(style.fontSize + "px " + style.font);
         if (style.maxLines && style.maxLines > 1) {
-            renderUtils_1.renderMultilineText(ctx, node.content, left + paddingLeft, top + paddingTop, width - paddingLeft - paddingRight, height - paddingTop - paddingBottom, style.lineHeight
+            renderUtils_1.renderMultilineText(ctx, this._lastCachedContext, node.content, left + paddingLeft, top + paddingTop, width - paddingLeft - paddingRight, height - paddingTop - paddingBottom, style.lineHeight
                 ? style.lineHeight
                 : style.fontSize * this._defaultLineHeightMultiplier, style.textAlign, style.verticalAlign, style.maxLines, style.textOverflow === "ellipsis" ? ellipsis : style.textOverflow);
         }
         else {
-            renderUtils_1.renderText(ctx, node.content, left + paddingLeft, top + paddingTop, width - paddingLeft - paddingRight, height - paddingTop - paddingBottom, style.textAlign, style.verticalAlign, style.textOverflow === "ellipsis" ? ellipsis : style.textOverflow, node);
+            renderUtils_1.renderText(ctx, this._lastCachedContext, node.content, left + paddingLeft, top + paddingTop, width - paddingLeft - paddingRight, height - paddingTop - paddingBottom, style.textAlign, style.verticalAlign, style.textOverflow === "ellipsis" ? ellipsis : style.textOverflow, node);
         }
     };
     CanvasView.prototype._renderBackgroundImage = function (style, layoutLeft, layoutTop, layoutWidth, layoutHeight, borderLeft, borderTop, borderRight, borderBottom) {
@@ -505,27 +491,19 @@ var CanvasView = /** @class */ (function () {
         this._addContext();
     };
     CanvasView.prototype._addContext = function () {
-        this._lastContext = {
-            font: this._lastContext.font,
-            fill: this._lastContext.fill,
-        };
-        this._contexts.push(this._lastContext);
+        this._lastCachedContext = this._lastCachedContext.createNestedContext();
     };
     CanvasView.prototype._restoreNodeClip = function () {
         this._ctx.restore();
         this._removeContext();
     };
     CanvasView.prototype._removeContext = function () {
-        this._contexts.pop();
-        this._lastContext = this._contexts[this._contexts.length - 1];
+        this._lastCachedContext = this._lastCachedContext.getParentContext();
     };
     CanvasView.prototype._renderBorder = function (strokeStyle, borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight) {
         var ctx = this._ctx;
         renderUtils_1.createBorderPath(ctx, borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
-        if (strokeStyle !== this._lastContext.fill) {
-            this._lastContext.fill = strokeStyle;
-            ctx.fillStyle = strokeStyle;
-        }
+        this._lastCachedContext.setFillStyle(strokeStyle);
         ctx.fill();
     };
     return CanvasView;

@@ -99,6 +99,9 @@ class Style implements IStyleProps {
     textAlign?: TEXT_ALIGN;
     verticalAlign?: VERTICAL_ALIGN;
     
+    // caches
+    _fullFont?: string;
+
     constructor(el: CanvasElement) {
         this.el = el;
     }
@@ -112,7 +115,7 @@ class Style implements IStyleProps {
             this.el._doc.markDirty();
         }
 
-        this.setProperty(name, NaN);
+        this.setProperty(name, undefined);
     }
 
     setProperty(name: string, value: any) {
@@ -126,6 +129,10 @@ class Style implements IStyleProps {
         switch(name) {
             case "font":
             case "fontSize":
+                if (this.fontSize && this.font) {
+                    this._fullFont = this.fontSize + "px " + this.font;
+                }
+            // tslint:disable-next-line:no-switch-case-fall-through
             case "maxLines":
                 if (this.isMeasureFunctionSet) {
                     // invalidate layout

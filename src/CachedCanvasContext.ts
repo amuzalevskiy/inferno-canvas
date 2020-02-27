@@ -1,15 +1,17 @@
+type CanvasTextAlign = "start" | "end" | "left" | "right" | "center";
+type CanvasTextBaseline = "top" | "hanging" | "middle" | "alphabetic" | "ideographic" | "bottom";
 export class CachedCanvasContext {
     public font: string;
     public fillStyle: string | CanvasGradient | CanvasPattern;
-    public textAlign: string;
-    public textBaseline: string;
+    public textAlign: CanvasTextAlign;
+    public textBaseline: CanvasTextBaseline;
     public context: CanvasRenderingContext2D;
     private parent?: CachedCanvasContext;
     constructor(parent: CachedCanvasContext | CanvasRenderingContext2D, context: CanvasRenderingContext2D) {
         this.font = parent.font;
         this.fillStyle = parent.fillStyle;
-        this.textAlign = parent.textAlign;
-        this.textBaseline = parent.textBaseline;
+        this.textAlign = parent.textAlign as unknown as CanvasTextAlign;
+        this.textBaseline = parent.textBaseline as unknown as CanvasTextBaseline;
         this.context = context;
         this.parent = parent instanceof CachedCanvasContext ? parent : undefined;
     }
@@ -36,17 +38,17 @@ export class CachedCanvasContext {
         }
     }
     
-    setTextAlign(textAlign: string) {
+    setTextAlign(textAlign: CanvasTextAlign) {
         if (textAlign !== this.textAlign) {
-            this.font = textAlign;
-            this.context.font = textAlign;
+            this.textAlign = textAlign;
+            this.context.textAlign = textAlign;
         }
     }
     
-    setTextBaseline(textBaseline: string) {
+    setTextBaseline(textBaseline: CanvasTextBaseline) {
         if (textBaseline !== this.textBaseline) {
             this.textBaseline = textBaseline;
-            this.context.font = textBaseline;
+            this.context.textBaseline = textBaseline;
         }
     }
 }

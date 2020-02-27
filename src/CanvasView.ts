@@ -21,7 +21,7 @@ import {
   outerBorderPath
 } from "./renderUtils";
 
-import { ImageCache } from "./ImageCache";
+import { ImageCache, ImageCacheEntry } from "./ImageCache";
 import { renderQueue } from "./renderQueue";
 import {
   ILayoutNode,
@@ -465,7 +465,9 @@ export class CanvasView {
     const ctx = this._ctx;
     const _yogaNode = node._yogaNode;
     const style = node.style;
-    const shouldClipChildren = style.overflow === OVERFLOW_HIDDEN || style.overflow === OVERFLOW_SCROLL;
+    const overflow = style.overflow;
+    const shouldClipChildren = !!overflow;
+    // const shouldClipChildren = overflow === OVERFLOW_HIDDEN || overflow === OVERFLOW_SCROLL;
     const layoutLeft = _yogaNode.getComputedLeft() + x,
       layoutTop = _yogaNode.getComputedTop() + y,
       layoutWidth = _yogaNode.getComputedWidth(),
@@ -637,13 +639,13 @@ export class CanvasView {
       paddingRight = _yogaNode.getComputedPadding(EDGE_RIGHT),
       paddingBottom = _yogaNode.getComputedPadding(EDGE_BOTTOM);
     const style = node.style;
-    if (!style.color || !style.font || style.fontSize === undefined) {
+    if (!style.color || !(style as any)._fullFont) {
       // unable to render
       return;
     }
     const ctx = this._ctx;
     this._lastCachedContext.setFillStyle(style.color);
-    this._lastCachedContext.setFont(style.fontSize + "px " + style.font);
+    this._lastCachedContext.setFont((style as any)._fullFont);
 
     if (style.maxLines && style.maxLines > 1) {
       renderMultilineText(
@@ -685,8 +687,8 @@ export class CanvasView {
     borderLeft: number, borderTop: number, borderRight: number, borderBottom: number
   ) {
     var imgMaybe = defaultImageCache.get(style.backgroundImage!);
-    if (imgMaybe instanceof HTMLImageElement) {
-      var backgroundImage = imgMaybe as any as HTMLImageElement;
+    if (imgMaybe instanceof ImageCacheEntry) {
+      var cacheEntry = imgMaybe;
       let targetRect: IRect = {
         left: layoutLeft + borderLeft,
         top: layoutTop + borderTop,
@@ -699,11 +701,9 @@ export class CanvasView {
           borderTop -
           borderBottom
       };
-      var imgWidth = backgroundImage.width,
-        imgHeight = backgroundImage.height;
 
-      let sourceRect: IRect = getImgBackgroundSourceRect(style, targetRect, imgWidth, imgHeight);
-      drawImageWithCache(this._ctx, backgroundImage, sourceRect, targetRect);
+      let sourceRect: IRect = getImgBackgroundSourceRect(style, targetRect, cacheEntry.width, cacheEntry.height);
+      drawImageWithCache(this._ctx, cacheEntry.image, sourceRect, targetRect);
     } else if (!(imgMaybe instanceof Error)) {
       // plan rendering
       renderQueue.renderAfter(this, imgMaybe);

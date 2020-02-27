@@ -12,8 +12,10 @@ export class AnimationFrameHandler {
   private avgCycleTimeSpent = 0;
   private avgRenderCycleTimeSpent = 0;
   private readonly registry: CanvasElementRegistry;
+  private enableTimeReport: boolean;
   constructor(registry: CanvasElementRegistry, enableTimeReport: boolean) {
     this.registry = registry;
+    this.enableTimeReport = enableTimeReport;
     if (enableTimeReport) {
       setInterval(() => {
         console.log("CYCLE: full: " + this.avgCycleTimeSpent.toFixed(1) + "ms, render: " + this.avgRenderCycleTimeSpent.toFixed(1) + "ms (" + (this.avgRenderCycleTimeSpent / this.avgCycleTimeSpent * 100).toFixed(0) + "%)");
@@ -57,8 +59,7 @@ export class AnimationFrameHandler {
     this._indexToCbMap.delete(index);
   }
   
-  _process = () => {
-    let cycleStart = performance.now();
+  _process = (cycleStart: number) => {
     this._queued = false;
     this._cycling = true;
     let callbacks = this._callbacks;
@@ -71,7 +72,10 @@ export class AnimationFrameHandler {
       cb(cycleStart);
     }
 
-    let renderingStart = performance.now();
+    let renderingStart: number = 0;
+    if (this.enableTimeReport) {
+      renderingStart = performance.now();
+    }
 
     // render all dirty views
     for (let j = 0; j < this._views.length; j++) {
@@ -91,10 +95,12 @@ export class AnimationFrameHandler {
     if (this._queued) {
       requestAnimationFrame(this._process);
     }
-    let endTime = performance.now();
-    let timeSpent = endTime - cycleStart;
-    this.avgCycleTimeSpent = this.avgCycleTimeSpent * 0.995 + timeSpent * 0.005;
-    let renderingTimeSpent = endTime - renderingStart;
-    this.avgRenderCycleTimeSpent = this.avgRenderCycleTimeSpent * 0.995 + renderingTimeSpent * 0.005;
+    if (this.enableTimeReport) {
+      let endTime = performance.now();
+      let timeSpent = endTime - cycleStart;
+      this.avgCycleTimeSpent = this.avgCycleTimeSpent * 0.995 + timeSpent * 0.005;
+      let renderingTimeSpent = endTime - renderingStart;
+      this.avgRenderCycleTimeSpent = this.avgRenderCycleTimeSpent * 0.995 + renderingTimeSpent * 0.005;
+    }
   }
 }
