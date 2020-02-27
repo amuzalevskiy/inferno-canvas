@@ -542,8 +542,8 @@ export class CanvasView {
 
     if (shouldClipChildren) {
       // set clipping
-      this._clipNode(borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
       this._addContext();
+      this._clipNode(borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
     }
 
     if (flags & HAS_CHILDREN) {
