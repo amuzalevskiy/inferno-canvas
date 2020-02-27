@@ -28,6 +28,8 @@ var Style = /** @class */ (function () {
             case "font":
             case "fontSize":
                 if (this.fontSize && this.font) {
+                    // this calculation takes time and memory
+                    // when done during rendering
                     this._fullFont = this.fontSize + "px " + this.font;
                 }
             // tslint:disable-next-line:no-switch-case-fall-through
@@ -309,7 +311,7 @@ var CanvasElement = /** @class */ (function () {
                     (style.backgroundImage ? exports.HAS_BACKGROUND_IMAGE : 0) |
                     (style.shadowColor && style.shadowColor !== "transparent" ? exports.HAS_SHADOW : 0) |
                     (style.background && style.background !== "transparent" ? exports.HAS_BACKGROUND : 0) |
-                    (this.content !== undefined && this.content !== "" ? exports.HAS_TEXT : 0);
+                    (this.content !== undefined && this.content !== "" && style.color && style._fullFont ? exports.HAS_TEXT : 0);
         }
         return this._flags;
     };

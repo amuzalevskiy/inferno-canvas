@@ -161,6 +161,9 @@ export const HAS_CLIPPING = 32;
 export const HAS_BORDER_RADIUS = 64;
 export const SKIP = 128;
 export const HAS_TEXT = 256;
+
+const NEEDS_DIMENTIONS = HAS_BORDER | HAS_BACKGROUND | HAS_SHADOW | HAS_BACKGROUND_IMAGE | HAS_CLIPPING | HAS_TEXT;
+
 export class CanvasView {
   public doc!: CanvasDocument;
   private _spec: CanvasElement;
@@ -478,11 +481,11 @@ export class CanvasView {
     const ctx = this._ctx;
     const yogaNode = node._yogaNode;
     const style = node.style;
-    // const shouldClipChildren = overflow === OVERFLOW_HIDDEN || overflow === OVERFLOW_SCROLL;
+    const needDimentions = flags & NEEDS_DIMENTIONS;
     const layoutLeft = yogaNode.getComputedLeft() + x,
       layoutTop = yogaNode.getComputedTop() + y,
-      layoutWidth = yogaNode.getComputedWidth(),
-      layoutHeight = yogaNode.getComputedHeight();
+      layoutWidth = needDimentions ? yogaNode.getComputedWidth() : 0,
+      layoutHeight = needDimentions ? yogaNode.getComputedHeight() : 0;
 
     const hasBorder = flags & HAS_BORDER;
     const borderLeft = hasBorder ? yogaNode.getComputedBorder(EDGE_LEFT) : 0,
@@ -632,20 +635,17 @@ export class CanvasView {
     node: CanvasElement,
     left: number, top: number, width: number, height: number
   ) {
+    const style = node.style;
+    const ctx = this._ctx;
+    
     const _yogaNode = node._yogaNode;
-    var paddingLeft = _yogaNode.getComputedPadding(EDGE_LEFT),
+    const paddingLeft = _yogaNode.getComputedPadding(EDGE_LEFT),
         paddingTop = _yogaNode.getComputedPadding(EDGE_TOP),
         paddingRight = _yogaNode.getComputedPadding(EDGE_RIGHT),
         paddingBottom = _yogaNode.getComputedPadding(EDGE_BOTTOM);
-    const style = node.style;
-    if (!style.color || !(style as any)._fullFont) {
-      // unable to render
-      return;
-    }
-    const ctx = this._ctx;
-    this._lastCachedContext.setFillStyle(style.color);
-    this._lastCachedContext.setFont((style as any)._fullFont);
-
+    
+    this._lastCachedContext.setFillStyle(style.color!);
+    this._lastCachedContext.setFont(style._fullFont!);
     if (style.maxLines && style.maxLines > 1) {
       renderMultilineText(
         ctx,

@@ -115,6 +115,7 @@ exports.HAS_CLIPPING = 32;
 exports.HAS_BORDER_RADIUS = 64;
 exports.SKIP = 128;
 exports.HAS_TEXT = 256;
+var NEEDS_DIMENTIONS = exports.HAS_BORDER | exports.HAS_BACKGROUND | exports.HAS_SHADOW | exports.HAS_BACKGROUND_IMAGE | exports.HAS_CLIPPING | exports.HAS_TEXT;
 var CanvasView = /** @class */ (function () {
     function CanvasView(canvas, spec, left, top, width, height, direction, defaultLineHeightMultiplier) {
         var _this = this;
@@ -358,8 +359,8 @@ var CanvasView = /** @class */ (function () {
         var ctx = this._ctx;
         var yogaNode = node._yogaNode;
         var style = node.style;
-        // const shouldClipChildren = overflow === OVERFLOW_HIDDEN || overflow === OVERFLOW_SCROLL;
-        var layoutLeft = yogaNode.getComputedLeft() + x, layoutTop = yogaNode.getComputedTop() + y, layoutWidth = yogaNode.getComputedWidth(), layoutHeight = yogaNode.getComputedHeight();
+        var needDimentions = flags & NEEDS_DIMENTIONS;
+        var layoutLeft = yogaNode.getComputedLeft() + x, layoutTop = yogaNode.getComputedTop() + y, layoutWidth = needDimentions ? yogaNode.getComputedWidth() : 0, layoutHeight = needDimentions ? yogaNode.getComputedHeight() : 0;
         var hasBorder = flags & exports.HAS_BORDER;
         var borderLeft = hasBorder ? yogaNode.getComputedBorder(EDGE_LEFT) : 0, borderTop = hasBorder ? yogaNode.getComputedBorder(EDGE_TOP) : 0, borderRight = hasBorder ? yogaNode.getComputedBorder(EDGE_RIGHT) : 0, borderBottom = hasBorder ? yogaNode.getComputedBorder(EDGE_BOTTOM) : 0;
         var borderRadius = flags & exports.HAS_BORDER_RADIUS ? 0 : style.borderRadius;
@@ -395,8 +396,8 @@ var CanvasView = /** @class */ (function () {
         }
         if (shouldClipChildren) {
             // set clipping
-            this._clipNode(borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
             this._addContext();
+            this._clipNode(borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
         }
         if (flags & exports.HAS_CHILDREN) {
             var len = node.children.length;
@@ -449,14 +450,10 @@ var CanvasView = /** @class */ (function () {
         ctx.restore();
     };
     CanvasView.prototype._renderText = function (node, left, top, width, height) {
+        var style = node.style;
+        var ctx = this._ctx;
         var _yogaNode = node._yogaNode;
         var paddingLeft = _yogaNode.getComputedPadding(EDGE_LEFT), paddingTop = _yogaNode.getComputedPadding(EDGE_TOP), paddingRight = _yogaNode.getComputedPadding(EDGE_RIGHT), paddingBottom = _yogaNode.getComputedPadding(EDGE_BOTTOM);
-        var style = node.style;
-        if (!style.color || !style._fullFont) {
-            // unable to render
-            return;
-        }
-        var ctx = this._ctx;
         this._lastCachedContext.setFillStyle(style.color);
         this._lastCachedContext.setFont(style._fullFont);
         if (style.maxLines && style.maxLines > 1) {

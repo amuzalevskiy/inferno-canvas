@@ -133,6 +133,8 @@ class Style implements IStyleProps {
             case "font":
             case "fontSize":
                 if (this.fontSize && this.font) {
+                    // this calculation takes time and memory
+                    // when done during rendering
                     this._fullFont = this.fontSize + "px " + this.font;
                 }
             // tslint:disable-next-line:no-switch-case-fall-through
@@ -439,7 +441,7 @@ export class CanvasElement implements ILayoutNode {
                 (style.backgroundImage ? HAS_BACKGROUND_IMAGE : 0) |
                 (style.shadowColor && style.shadowColor !== "transparent" ? HAS_SHADOW : 0) |
                 (style.background && style.background !== "transparent" ? HAS_BACKGROUND : 0) |
-                (this.content !== undefined && this.content !== "" ? HAS_TEXT : 0);
+                (this.content !== undefined && this.content !== "" && style.color && style._fullFont ? HAS_TEXT : 0);
         }
         return this._flags;
     }

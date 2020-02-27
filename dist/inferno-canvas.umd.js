@@ -12651,6 +12651,8 @@
                 case "font":
                 case "fontSize":
                     if (this.fontSize && this.font) {
+                        // this calculation takes time and memory
+                        // when done during rendering
                         this._fullFont = this.fontSize + "px " + this.font;
                     }
                 // tslint:disable-next-line:no-switch-case-fall-through
@@ -12932,7 +12934,7 @@
                         (style.backgroundImage ? HAS_BACKGROUND_IMAGE : 0) |
                         (style.shadowColor && style.shadowColor !== "transparent" ? HAS_SHADOW : 0) |
                         (style.background && style.background !== "transparent" ? HAS_BACKGROUND : 0) |
-                        (this.content !== undefined && this.content !== "" ? HAS_TEXT : 0);
+                        (this.content !== undefined && this.content !== "" && style.color && style._fullFont ? HAS_TEXT : 0);
             }
             return this._flags;
         };
@@ -13883,6 +13885,7 @@
     var HAS_BORDER_RADIUS$1 = 64;
     var SKIP$1 = 128;
     var HAS_TEXT$1 = 256;
+    var NEEDS_DIMENTIONS = HAS_BORDER$1 | HAS_BACKGROUND$1 | HAS_SHADOW$1 | HAS_BACKGROUND_IMAGE$1 | HAS_CLIPPING$1 | HAS_TEXT$1;
     var CanvasView = /** @class */ (function () {
         function CanvasView(canvas, spec, left, top, width, height, direction, defaultLineHeightMultiplier) {
             var _this = this;
@@ -14126,8 +14129,8 @@
             var ctx = this._ctx;
             var yogaNode = node._yogaNode;
             var style = node.style;
-            // const shouldClipChildren = overflow === OVERFLOW_HIDDEN || overflow === OVERFLOW_SCROLL;
-            var layoutLeft = yogaNode.getComputedLeft() + x, layoutTop = yogaNode.getComputedTop() + y, layoutWidth = yogaNode.getComputedWidth(), layoutHeight = yogaNode.getComputedHeight();
+            var needDimentions = flags & NEEDS_DIMENTIONS;
+            var layoutLeft = yogaNode.getComputedLeft() + x, layoutTop = yogaNode.getComputedTop() + y, layoutWidth = needDimentions ? yogaNode.getComputedWidth() : 0, layoutHeight = needDimentions ? yogaNode.getComputedHeight() : 0;
             var hasBorder = flags & HAS_BORDER$1;
             var borderLeft = hasBorder ? yogaNode.getComputedBorder(EDGE_LEFT$1) : 0, borderTop = hasBorder ? yogaNode.getComputedBorder(EDGE_TOP$1) : 0, borderRight = hasBorder ? yogaNode.getComputedBorder(EDGE_RIGHT$1) : 0, borderBottom = hasBorder ? yogaNode.getComputedBorder(EDGE_BOTTOM$1) : 0;
             var borderRadius = flags & HAS_BORDER_RADIUS$1 ? 0 : style.borderRadius;
@@ -14163,8 +14166,8 @@
             }
             if (shouldClipChildren) {
                 // set clipping
-                this._clipNode(borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
                 this._addContext();
+                this._clipNode(borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
             }
             if (flags & HAS_CHILDREN$1) {
                 var len = node.children.length;
@@ -14217,14 +14220,10 @@
             ctx.restore();
         };
         CanvasView.prototype._renderText = function (node, left, top, width, height) {
+            var style = node.style;
+            var ctx = this._ctx;
             var _yogaNode = node._yogaNode;
             var paddingLeft = _yogaNode.getComputedPadding(EDGE_LEFT$1), paddingTop = _yogaNode.getComputedPadding(EDGE_TOP$1), paddingRight = _yogaNode.getComputedPadding(EDGE_RIGHT$1), paddingBottom = _yogaNode.getComputedPadding(EDGE_BOTTOM$1);
-            var style = node.style;
-            if (!style.color || !style._fullFont) {
-                // unable to render
-                return;
-            }
-            var ctx = this._ctx;
             this._lastCachedContext.setFillStyle(style.color);
             this._lastCachedContext.setFont(style._fullFont);
             if (style.maxLines && style.maxLines > 1) {
