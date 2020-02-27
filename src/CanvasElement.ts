@@ -312,6 +312,7 @@ class Style implements IStyleProps {
                 node.setMargin(EDGE_END, value !== undefined ? value : NaN);
                 break;
 
+            case "background":
             case "borderRadius":
             case "borderColor":
             case "shadowColor":
