@@ -33,6 +33,7 @@ import { LayoutEvent, bubbleEvent, mapEventType } from "./LayoutEvent";
 import { CanvasElement } from "./CanvasElement";
 import { TextureAtlas } from "./TextureAtlas";
 import { CanvasDocument } from "./CanvasDocument";
+import { CachedCanvasContext } from "./CachedCanvasContext";
 
 const ellipsis = String.fromCharCode(0x2026);
 
@@ -171,15 +172,7 @@ export class CanvasView {
     mouseup: false
   };
 
-  private _contexts: {
-    font: string;
-    fill: string | CanvasGradient | CanvasPattern;
-  }[] = [];
-
-  private _lastContext: {
-    font: string;
-    fill: string | CanvasGradient | CanvasPattern;
-  };
+  private _lastCachedContext: CachedCanvasContext;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -195,11 +188,7 @@ export class CanvasView {
     this._spec = spec;
     this._processEvent = this._processEvent.bind(this);
     this._ctx = canvas.getContext("2d")!;
-    this._lastContext = {
-      font: this._ctx.font,
-      fill: this._ctx.fillStyle,
-    };
-    this._contexts.push(this._lastContext);
+    this._lastCachedContext = new CachedCanvasContext(this._ctx, this._ctx);
     this._defaultLineHeightMultiplier = defaultLineHeightMultiplier;
     this.x = left;
     this.y = top;
@@ -494,10 +483,7 @@ export class CanvasView {
         borderRight > 0);
 
     if (style.background) {
-      if (style.background !== this._lastContext.fill) {
-        this._lastContext.fill = style.background;
-        ctx.fillStyle = style.background;
-      }
+      this._lastCachedContext.setFillStyle(style.background);
       if (borderRadius > 0) {
         if (hasBorder) {
           // the only found way to fix rendering artifacts with rounded borders
@@ -656,20 +642,13 @@ export class CanvasView {
       return;
     }
     const ctx = this._ctx;
-    if (style.color !== this._lastContext.fill) {
-      this._lastContext.fill = style.color;
-      ctx.fillStyle = style.color;
-    }
-    
-    const font = style.fontSize + "px " + style.font;
-    if (font !== this._lastContext.font) {
-      this._lastContext.font = font;
-      ctx.font = font;
-    }
+    this._lastCachedContext.setFillStyle(style.color);
+    this._lastCachedContext.setFont(style.fontSize + "px " + style.font);
 
     if (style.maxLines && style.maxLines > 1) {
       renderMultilineText(
         ctx,
+        this._lastCachedContext,
         node.content!,
         left + paddingLeft,
         top + paddingTop,
@@ -686,7 +665,8 @@ export class CanvasView {
     } else {
       renderText(
         ctx,
-        node.content!,    
+        this._lastCachedContext,
+        node.content!,
         left + paddingLeft,
         top + paddingTop,
         width - paddingLeft - paddingRight,
@@ -738,11 +718,7 @@ export class CanvasView {
   }
 
   private _addContext() {
-    this._lastContext = {
-      font: this._lastContext.font,
-      fill: this._lastContext.fill,
-    };
-    this._contexts.push(this._lastContext);
+    this._lastCachedContext = this._lastCachedContext.createNestedContext();
   }
 
   private _restoreNodeClip() {
@@ -751,17 +727,13 @@ export class CanvasView {
   }
 
   private _removeContext() {
-    this._contexts.pop();
-    this._lastContext = this._contexts[this._contexts.length - 1];
+    this._lastCachedContext = this._lastCachedContext.getParentContext();
   }
 
   private _renderBorder(strokeStyle: string, borderLeft: number, borderTop: number, borderRight: number, borderBottom: number, borderRadius: number, layoutLeft: number, layoutTop: number, layoutWidth: number, layoutHeight: number) {
     var ctx = this._ctx;
     createBorderPath(ctx, borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
-    if (strokeStyle !== this._lastContext.fill) {
-      this._lastContext.fill = strokeStyle;
-      ctx.fillStyle = strokeStyle;
-    }
+    this._lastCachedContext.setFillStyle(strokeStyle);
     ctx.fill();
   }
 }

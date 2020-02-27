@@ -1,4 +1,5 @@
 import { BasketsCache } from "./BasketsCache";
+import { CachedCanvasContext } from "./CachedCanvasContext";
 
 export const TEXT_ALIGN_LEFT = 0;
 export const TEXT_ALIGN_CENTER = 1;
@@ -21,6 +22,7 @@ export type VERTICAL_ALIGN =
 const SPACES_REGEXP = /\s+/;
 export function renderText(
   ctx: CanvasRenderingContext2D,
+  cachedContext: CachedCanvasContext,
   text: string,
   left: number,
   top: number,
@@ -37,34 +39,34 @@ export function renderText(
     }
   }
 ) {
-  let x, y;
+  let x: number, y: number;
   switch (textAlign) {
     case TEXT_ALIGN_RIGHT:
       x = left + width;
-      ctx.textAlign = "right";
+      cachedContext.setTextAlign("right");
       break;
     case TEXT_ALIGN_CENTER:
       x = left + width / 2;
-      ctx.textAlign = "center";
+      cachedContext.setTextAlign("center");
       break;
     default:
       x = left;
-      ctx.textAlign = "left";
+      cachedContext.setTextAlign("left");
       break;
   }
 
   switch (verticalAlign) {
     case VERTICAL_ALIGN_MIDDLE:
       y = top + height / 2;
-      ctx.textBaseline = "middle";
+      cachedContext.setTextBaseline("middle");
       break;
     case VERTICAL_ALIGN_BOTTOM:
       y = top + height;
-      ctx.textBaseline = "bottom";
+      cachedContext.setTextBaseline("bottom");
       break;
     default:
       y = top;
-      ctx.textBaseline = "top";
+      cachedContext.setTextBaseline("top");
       break;
   }
   if (ellipsisChar) {
@@ -203,6 +205,7 @@ export function countLines(
 
 export function renderMultilineText(
   ctx: CanvasRenderingContext2D,
+  cachedContext: CachedCanvasContext,
   text: string,
   left: number,
   top: number,
@@ -258,6 +261,7 @@ export function renderMultilineText(
   for (i = 0; i < lines.length; i++) {
     renderText(
       ctx,
+      cachedContext,
       lines[i],
       left,
       startX,
