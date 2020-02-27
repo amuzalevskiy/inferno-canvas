@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var yoga_layout_1 = require("yoga-layout");
-var Node = yoga_layout_1.default.Node, EDGE_TOP = yoga_layout_1.default.EDGE_TOP, EDGE_RIGHT = yoga_layout_1.default.EDGE_RIGHT, EDGE_BOTTOM = yoga_layout_1.default.EDGE_BOTTOM, EDGE_ALL = yoga_layout_1.default.EDGE_ALL, EDGE_LEFT = yoga_layout_1.default.EDGE_LEFT, EDGE_START = yoga_layout_1.default.EDGE_START, EDGE_END = yoga_layout_1.default.EDGE_END, EDGE_VERTICAL = yoga_layout_1.default.EDGE_VERTICAL, EDGE_HORIZONTAL = yoga_layout_1.default.EDGE_HORIZONTAL;
+var Node = yoga_layout_1.default.Node, EDGE_TOP = yoga_layout_1.default.EDGE_TOP, EDGE_RIGHT = yoga_layout_1.default.EDGE_RIGHT, EDGE_BOTTOM = yoga_layout_1.default.EDGE_BOTTOM, EDGE_ALL = yoga_layout_1.default.EDGE_ALL, EDGE_LEFT = yoga_layout_1.default.EDGE_LEFT, EDGE_START = yoga_layout_1.default.EDGE_START, EDGE_END = yoga_layout_1.default.EDGE_END, EDGE_VERTICAL = yoga_layout_1.default.EDGE_VERTICAL, EDGE_HORIZONTAL = yoga_layout_1.default.EDGE_HORIZONTAL, POSITION_TYPE_ABSOLUTE = yoga_layout_1.default.POSITION_TYPE_ABSOLUTE, DISPLAY_NONE = yoga_layout_1.default.DISPLAY_NONE;
 var renderUtils_1 = require("./renderUtils");
 var YGMeasureModeUndefined = 0, YGMeasureModeExactly = 1, YGMeasureModeAtMost = 2;
 var Style = /** @class */ (function () {
@@ -52,6 +52,7 @@ var Style = /** @class */ (function () {
                 node.setAspectRatio(value !== undefined ? value : NaN);
                 break;
             case "display":
+                this.el._flagsDirty = true;
                 node.setDisplay(value !== undefined ? value : NaN);
                 break;
             case "flex":
@@ -92,10 +93,12 @@ var Style = /** @class */ (function () {
                 node.setMinWidth(value !== undefined ? value : NaN);
                 break;
             case "overflow":
+                this.el._flagsDirty = true;
                 node.setOverflow(value !== undefined ? value : NaN);
                 break;
             case "position":
                 node.setPositionType(value !== undefined ? value : NaN);
+                this.el._isAbsolute = value === POSITION_TYPE_ABSOLUTE;
                 break;
             case "width":
                 node.setWidth(value !== undefined ? value : NaN);
@@ -156,24 +159,31 @@ var Style = /** @class */ (function () {
                 node.setPadding(EDGE_HORIZONTAL, value !== undefined ? value : NaN);
                 break;
             case "border":
+                this.el._flagsDirty = true;
                 node.setBorder(EDGE_ALL, value !== undefined ? value : NaN);
                 break;
             case "borderTop":
+                this.el._flagsDirty = true;
                 node.setBorder(EDGE_TOP, value !== undefined ? value : NaN);
                 break;
             case "borderLeft":
+                this.el._flagsDirty = true;
                 node.setBorder(EDGE_LEFT, value !== undefined ? value : NaN);
                 break;
             case "borderBottom":
+                this.el._flagsDirty = true;
                 node.setBorder(EDGE_BOTTOM, value !== undefined ? value : NaN);
                 break;
             case "borderRight":
+                this.el._flagsDirty = true;
                 node.setBorder(EDGE_RIGHT, value !== undefined ? value : NaN);
                 break;
             case "borderStart":
+                this.el._flagsDirty = true;
                 node.setBorder(EDGE_START, value !== undefined ? value : NaN);
                 break;
             case "borderEnd":
+                this.el._flagsDirty = true;
                 node.setBorder(EDGE_END, value !== undefined ? value : NaN);
                 break;
             case "paddingStart":
@@ -187,6 +197,12 @@ var Style = /** @class */ (function () {
                 break;
             case "marginEnd":
                 node.setMargin(EDGE_END, value !== undefined ? value : NaN);
+                break;
+            case "borderRadius":
+            case "borderColor":
+            case "shadowColor":
+            case "backgroundImage":
+                this.el._flagsDirty = true;
                 break;
         }
     };
@@ -250,13 +266,53 @@ var Style = /** @class */ (function () {
     };
     return Style;
 }());
+exports.HAS_CHILDREN = 1;
+exports.HAS_BORDER = 2;
+exports.HAS_BACKGROUND = 4;
+exports.HAS_SHADOW = 8;
+exports.HAS_BACKGROUND_IMAGE = 16;
+exports.HAS_CLIPPING = 32;
+exports.HAS_BORDER_RADIUS = 64;
+exports.SKIP = 128;
+exports.HAS_TEXT = 256;
 var CanvasElement = /** @class */ (function () {
     function CanvasElement(nodeName, registry) {
+        this._flagsDirty = false;
+        this._flags = 0;
+        this._isAbsolute = false;
         this.nodeName = nodeName;
         this.registry = registry;
         this._yogaNode = Node.create();
         this.style = new Style(this);
     }
+    CanvasElement.prototype.getFlags = function () {
+        if (this._flagsDirty) {
+            this._flagsDirty = false;
+            var style = this.style;
+            if (style.display === DISPLAY_NONE) {
+                this._flags = exports.SKIP;
+            }
+            var _yogaNode = this._yogaNode;
+            var borderRadius = style.borderRadius || 0;
+            var borderLeft = _yogaNode.getComputedBorder(EDGE_LEFT), borderTop = _yogaNode.getComputedBorder(EDGE_TOP), borderRight = _yogaNode.getComputedBorder(EDGE_RIGHT), borderBottom = _yogaNode.getComputedBorder(EDGE_BOTTOM);
+            var hasBorder = style.borderColor !== undefined &&
+                (borderTop > 0 ||
+                    borderLeft > 0 ||
+                    borderBottom > 0 ||
+                    borderRight > 0);
+            var shouldClipChildren = !!style.overflow || hasBorder;
+            this._flags =
+                (this.children && this.children.length ? exports.HAS_CHILDREN : 0) |
+                    (hasBorder ? exports.HAS_BORDER : 0) |
+                    (shouldClipChildren ? exports.HAS_CLIPPING : 0) |
+                    (borderRadius > 0 ? exports.HAS_BORDER_RADIUS : 0) |
+                    (style.backgroundImage ? exports.HAS_BACKGROUND_IMAGE : 0) |
+                    (style.shadowColor && style.shadowColor !== "transparent" ? exports.HAS_SHADOW : 0) |
+                    (style.background && style.background !== "transparent" ? exports.HAS_BACKGROUND : 0) |
+                    (this.content !== undefined && this.content !== "" ? exports.HAS_TEXT : 0);
+        }
+        return this._flags;
+    };
     CanvasElement.prototype.free = function () {
         if (this._yogaNode) {
             this._yogaNode.freeRecursive();
@@ -313,6 +369,7 @@ var CanvasElement = /** @class */ (function () {
         this[name] = value;
         switch (name) {
             case "content":
+                this._flagsDirty = true;
                 // invalidate layout
                 if (this.style.isMeasureFunctionSet && !this._yogaNode.isDirty()) {
                     this._yogaNode.markDirty();
@@ -328,6 +385,7 @@ var CanvasElement = /** @class */ (function () {
         this[name] = undefined;
         switch (name) {
             case "content":
+                this._flagsDirty = true;
                 // invalidate layout
                 if (!this._yogaNode.isDirty()) {
                     this._yogaNode.markDirty();
@@ -337,6 +395,7 @@ var CanvasElement = /** @class */ (function () {
         }
     };
     CanvasElement.prototype.appendChild = function (child) {
+        this._flagsDirty = true;
         if (this._doc && !this._doc.dirty) {
             this._doc.markDirty();
         }
@@ -350,6 +409,7 @@ var CanvasElement = /** @class */ (function () {
         child._setDoc(this._doc);
     };
     CanvasElement.prototype.insertBefore = function (newNode, nextNode) {
+        this._flagsDirty = true;
         if (this._doc && !this._doc.dirty) {
             this._doc.markDirty();
         }
@@ -370,6 +430,7 @@ var CanvasElement = /** @class */ (function () {
         newNode._setDoc(this._doc);
     };
     CanvasElement.prototype.replaceChild = function (newDom, lastDom) {
+        this._flagsDirty = true;
         if (this._doc && !this._doc.dirty) {
             this._doc.markDirty();
         }
@@ -386,6 +447,7 @@ var CanvasElement = /** @class */ (function () {
         }
     };
     CanvasElement.prototype.removeChild = function (childNode) {
+        this._flagsDirty = true;
         if (this._doc && !this._doc.dirty) {
             this._doc.markDirty();
         }

@@ -8,9 +8,10 @@ import {
   YogaOverflow,
   YogaDisplay
 } from "yoga-layout";
-import { LayoutEvent } from "./LayoutEvent";
+import { CanvasViewEvent } from "./CanvasViewEvent";
 import { FlexDirectionString, JustifyContentString, YogaAlignString, YogaFlexWrapString, YogaPositionTypeString, YogaOverflowString, YogaDisplayString } from "./convertStringToYogaConst";
 import { TEXT_ALIGN_STRING, VERTICAL_ALIGN_STRING } from "./parseStyle";
+import { CanvasElement } from "./CanvasElement";
 
 export const TEXT_ALIGN_LEFT = 0;
 export const TEXT_ALIGN_CENTER = 1;
@@ -121,13 +122,13 @@ export interface INode {
   children?: Array<INode>;
   content?: string;
   maxLines?: number;
-  onClick?: (e: LayoutEvent) => void;
-  onDoubleClick?: (e: LayoutEvent) => void;
-  onMouseDown?: (e: LayoutEvent) => void;
-  onMouseMove?: (e: LayoutEvent) => void;
-  onMouseUp?: (e: LayoutEvent) => void;
-  onMouseEnter?: (e: LayoutEvent) => void;
-  onMouseLeave?: (e: LayoutEvent) => void;
+  onClick?: (e: CanvasViewEvent) => void;
+  onDoubleClick?: (e: CanvasViewEvent) => void;
+  onMouseDown?: (e: CanvasViewEvent) => void;
+  onMouseMove?: (e: CanvasViewEvent) => void;
+  onMouseUp?: (e: CanvasViewEvent) => void;
+  onMouseEnter?: (e: CanvasViewEvent) => void;
+  onMouseLeave?: (e: CanvasViewEvent) => void;
 }
 export interface ILayoutNode {
   parentNode?: ILayoutNode;
@@ -136,7 +137,7 @@ export interface ILayoutNode {
   children?: Array<ILayoutNode>;
   content?: string;
   $EV?: {
-    [eventName: string]: (event: LayoutEvent) => void | undefined
+    [eventName: string]: (event: CanvasViewEvent) => void | undefined
   }
 }
 export interface IRect {
@@ -146,7 +147,7 @@ export interface IRect {
     height: number;
 }
 export interface IRenderSpec {
-  node: ILayoutNode;
+  node: CanvasElement;
   x: number;
   y: number;
 }

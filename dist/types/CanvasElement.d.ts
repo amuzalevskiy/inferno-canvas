@@ -1,6 +1,7 @@
 import { YogaNode, YogaFlexDirection, YogaJustifyContent, YogaAlign, YogaPositionType, YogaFlexWrap, YogaOverflow, YogaDisplay } from "yoga-layout";
 import { IStyleProps, TEXT_ALIGN, VERTICAL_ALIGN, ILayoutNode } from "./node";
 import { CanvasElementRegistry } from "./CanvasElementRegistry";
+import { CanvasViewEvent } from "./CanvasViewEvent";
 declare class Style implements IStyleProps {
     el: CanvasElement;
     flex?: number;
@@ -84,10 +85,23 @@ declare class Style implements IStyleProps {
         height: number;
     };
 }
+export declare const HAS_CHILDREN = 1;
+export declare const HAS_BORDER = 2;
+export declare const HAS_BACKGROUND = 4;
+export declare const HAS_SHADOW = 8;
+export declare const HAS_BACKGROUND_IMAGE = 16;
+export declare const HAS_CLIPPING = 32;
+export declare const HAS_BORDER_RADIUS = 64;
+export declare const SKIP = 128;
+export declare const HAS_TEXT = 256;
 export declare class CanvasElement implements ILayoutNode {
     readonly registry: CanvasElementRegistry;
     readonly nodeName: string;
+    _flagsDirty: boolean;
+    private _flags;
+    _isAbsolute: boolean;
     constructor(nodeName: string, registry: CanvasElementRegistry);
+    getFlags(): number;
     free(): void;
     parentNode?: CanvasElement;
     _yogaNode: YogaNode;
@@ -96,7 +110,7 @@ export declare class CanvasElement implements ILayoutNode {
     content?: string;
     _doc: any;
     $EV?: {
-        [name: string]: () => any;
+        [name: string]: (ev: CanvasViewEvent) => any;
     };
     set innerHTML(value: string);
     set textContent(value: string);

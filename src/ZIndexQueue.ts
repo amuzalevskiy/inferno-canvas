@@ -1,5 +1,6 @@
-import { IRenderSpec, ILayoutNode } from './node';
+import { IRenderSpec } from './node';
 import { CanvasView } from './CanvasView';
+import { CanvasElement } from './CanvasElement';
 export class ZIndexQueue {
     queue!: Map<number, Array<IRenderSpec>>;
     empty: boolean = true;
@@ -47,7 +48,7 @@ export class ZIndexQueue {
         }
     }
 
-    hitTest(offsetX: number, offsetY: number, view: CanvasView): ILayoutNode | undefined {
+    hitTest(offsetX: number, offsetY: number, view: CanvasView): CanvasElement | undefined {
         if (this.empty) {
             return;
         }

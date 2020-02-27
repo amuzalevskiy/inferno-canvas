@@ -6,7 +6,7 @@ var renderUtils_1 = require("./renderUtils");
 var ImageCache_1 = require("./ImageCache");
 var renderQueue_1 = require("./renderQueue");
 var ZIndexQueue_1 = require("./ZIndexQueue");
-var LayoutEvent_1 = require("./LayoutEvent");
+var CanvasViewEvent_1 = require("./CanvasViewEvent");
 var TextureAtlas_1 = require("./TextureAtlas");
 var CachedCanvasContext_1 = require("./CachedCanvasContext");
 var ellipsis = String.fromCharCode(0x2026);
@@ -105,6 +105,16 @@ var eventsMapping = isTouchDevice ? {
     mouseup: "mouseup",
 };
 var reverseEventsMapping = reverseObject(eventsMapping);
+// THERE IS AN COPY IN CANVAS ELEMENT
+exports.HAS_CHILDREN = 1;
+exports.HAS_BORDER = 2;
+exports.HAS_BACKGROUND = 4;
+exports.HAS_SHADOW = 8;
+exports.HAS_BACKGROUND_IMAGE = 16;
+exports.HAS_CLIPPING = 32;
+exports.HAS_BORDER_RADIUS = 64;
+exports.SKIP = 128;
+exports.HAS_TEXT = 256;
 var CanvasView = /** @class */ (function () {
     function CanvasView(canvas, spec, left, top, width, height, direction, defaultLineHeightMultiplier) {
         var _this = this;
@@ -142,7 +152,7 @@ var CanvasView = /** @class */ (function () {
             if (!target) {
                 return;
             }
-            LayoutEvent_1.bubbleEvent(e, reverseEventsMapping[e.type], target);
+            CanvasViewEvent_1.bubbleEvent(e, reverseEventsMapping[e.type], target);
         };
         this._canvas = canvas;
         this._spec = spec;
@@ -179,7 +189,7 @@ var CanvasView = /** @class */ (function () {
     };
     CanvasView.prototype.bindEventHandlers = function (nextListenersState) {
         if (nextListenersState === void 0) { nextListenersState = this.doc.eventCounter; }
-        for (var name_1 in LayoutEvent_1.mapEventType) {
+        for (var name_1 in CanvasViewEvent_1.mapEventType) {
             if (nextListenersState[name_1]) {
                 if (!this._listenersState[name_1]) {
                     this._listenersState[name_1] = true;
@@ -306,14 +316,14 @@ var CanvasView = /** @class */ (function () {
             var pt = previousTargets[i];
             if (pt.$EV && typeof pt.$EV.onMouseLeave === "function" &&
                 nextTargets.indexOf(pt) === -1) {
-                pt.$EV.onMouseLeave(new LayoutEvent_1.LayoutEvent(e, "mouseleave", pt, false));
+                pt.$EV.onMouseLeave(new CanvasViewEvent_1.CanvasViewEvent(e, "mouseleave", pt, false));
             }
         }
         for (i = 0; i < nextTargets.length; i += 1) {
             var nt = nextTargets[i];
             if (nt.$EV && typeof nt.$EV.onMouseEnter === "function" &&
                 previousTargets.indexOf(nt) === -1) {
-                nt.$EV.onMouseEnter(new LayoutEvent_1.LayoutEvent(e, "mouseenter", nt, false));
+                nt.$EV.onMouseEnter(new CanvasViewEvent_1.CanvasViewEvent(e, "mouseenter", nt, false));
             }
         }
         this._previousTarget = nextTarget;
@@ -341,21 +351,20 @@ var CanvasView = /** @class */ (function () {
         this._removeContext();
     };
     CanvasView.prototype._renderNode = function (node, x, y) {
+        var flags = node.getFlags();
+        if (flags & exports.SKIP) {
+            return;
+        }
         var ctx = this._ctx;
-        var _yogaNode = node._yogaNode;
+        var yogaNode = node._yogaNode;
         var style = node.style;
-        var overflow = style.overflow;
-        var shouldClipChildren = !!overflow;
         // const shouldClipChildren = overflow === OVERFLOW_HIDDEN || overflow === OVERFLOW_SCROLL;
-        var layoutLeft = _yogaNode.getComputedLeft() + x, layoutTop = _yogaNode.getComputedTop() + y, layoutWidth = _yogaNode.getComputedWidth(), layoutHeight = _yogaNode.getComputedHeight();
-        var borderLeft = _yogaNode.getComputedBorder(EDGE_LEFT), borderTop = _yogaNode.getComputedBorder(EDGE_TOP), borderRight = _yogaNode.getComputedBorder(EDGE_RIGHT), borderBottom = _yogaNode.getComputedBorder(EDGE_BOTTOM);
-        var borderRadius = style.borderRadius || 0;
-        var hasBorder = !!style.borderColor &&
-            (borderTop > 0 ||
-                borderLeft > 0 ||
-                borderBottom > 0 ||
-                borderRight > 0);
-        if (style.background) {
+        var layoutLeft = yogaNode.getComputedLeft() + x, layoutTop = yogaNode.getComputedTop() + y, layoutWidth = yogaNode.getComputedWidth(), layoutHeight = yogaNode.getComputedHeight();
+        var hasBorder = flags & exports.HAS_BORDER;
+        var borderLeft = hasBorder ? yogaNode.getComputedBorder(EDGE_LEFT) : 0, borderTop = hasBorder ? yogaNode.getComputedBorder(EDGE_TOP) : 0, borderRight = hasBorder ? yogaNode.getComputedBorder(EDGE_RIGHT) : 0, borderBottom = hasBorder ? yogaNode.getComputedBorder(EDGE_BOTTOM) : 0;
+        var borderRadius = flags & exports.HAS_BORDER_RADIUS ? 0 : style.borderRadius;
+        var shouldClipChildren = flags & exports.HAS_CLIPPING;
+        if (flags & exports.HAS_BACKGROUND) {
             this._lastCachedContext.setFillStyle(style.background);
             if (borderRadius > 0) {
                 if (hasBorder) {
@@ -375,10 +384,10 @@ var CanvasView = /** @class */ (function () {
                 ctx.fillRect(layoutLeft + borderLeft, layoutTop + borderTop, layoutWidth - borderLeft - borderRight, layoutHeight - borderTop - borderBottom);
             }
         }
-        if (style.shadowColor && style.shadowColor !== "transparent") {
+        if (flags & exports.HAS_SHADOW) {
             this._renderShadow(ctx, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight, style, hasBorder);
         }
-        if (style.backgroundImage) {
+        if (flags & exports.HAS_BACKGROUND_IMAGE) {
             this._renderBackgroundImage(style, layoutLeft, layoutTop, layoutWidth, layoutHeight, borderLeft, borderTop, borderRight, borderBottom);
         }
         if (hasBorder) {
@@ -389,11 +398,12 @@ var CanvasView = /** @class */ (function () {
             this._clipNode(borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
             this._addContext();
         }
-        if (node.children) {
+        if (flags & exports.HAS_CHILDREN) {
             var len = node.children.length;
             for (var i = 0; i < len; i++) {
                 var childNode = node.children[i];
-                if (childNode.style.position === POSITION_TYPE_ABSOLUTE) {
+                // should be CanvasElement?
+                if (childNode._isAbsolute) {
                     this._currentQueue.push({
                         node: childNode,
                         x: layoutLeft,
@@ -405,15 +415,10 @@ var CanvasView = /** @class */ (function () {
                 }
             }
         }
-        else if (node.content !== undefined) {
-            var paddingLeft = _yogaNode.getComputedPadding(EDGE_LEFT), paddingTop = _yogaNode.getComputedPadding(EDGE_TOP), paddingRight = _yogaNode.getComputedPadding(EDGE_RIGHT), paddingBottom = _yogaNode.getComputedPadding(EDGE_BOTTOM);
-            this._renderText(node, layoutLeft + paddingLeft + borderLeft, layoutTop + paddingTop + borderTop, layoutWidth -
-                paddingLeft -
-                paddingRight -
+        else if (flags & exports.HAS_TEXT) {
+            this._renderText(node, layoutLeft + borderLeft, layoutTop + borderTop, layoutWidth -
                 borderLeft -
                 borderRight, layoutHeight -
-                paddingTop -
-                paddingBottom -
                 borderTop -
                 borderBottom);
         }

@@ -1,4 +1,5 @@
 import { ILayoutNode } from "./node";
+import { CanvasElement } from "./CanvasElement";
 
 export const mapEventType = {
   click: 1,
@@ -13,9 +14,9 @@ export const mapEventType = {
   */
 };
 
-export function bubbleEvent(e: Event, type: string, node: ILayoutNode) {
-  let event = new LayoutEvent(e, type, node);
-  let current: ILayoutNode|undefined = node;
+export function bubbleEvent(e: Event, type: string, node: CanvasElement) {
+  let event = new CanvasViewEvent(e, type, node);
+  let current: CanvasElement|undefined = node;
   while (current) {
     if (current.$EV && current.$EV[type]) {
       event.currentTarget = current;
@@ -28,16 +29,16 @@ export function bubbleEvent(e: Event, type: string, node: ILayoutNode) {
   }
 }
 
-export class LayoutEvent {
+export class CanvasViewEvent {
   originalEvent: Event;
   cancelBubble: boolean = false;
-  readonly target: ILayoutNode;
-  currentTarget: ILayoutNode;
+  readonly target: CanvasElement;
+  currentTarget: CanvasElement;
   readonly type: string;
   constructor(
     originalEvent: Event,
     type: string,
-    target: ILayoutNode,
+    target: CanvasElement,
     bubbles: boolean = true
   ) {
     this.originalEvent = originalEvent;
