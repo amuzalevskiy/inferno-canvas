@@ -3,8 +3,13 @@ export declare type FlexDirectionString = 'column-reverse' | 'row' | 'row-revers
 export declare function convertFlexDirection(value: FlexDirectionString): YogaFlexDirection;
 export declare type JustifyContentString = 'center' | 'flex-end' | 'flex-start' | 'space-between' | 'space-around' | 'space-evenly';
 export declare function convertJustifyContent(value: JustifyContentString): YogaJustifyContent;
-export declare function convertAlign(value: string, defaultValue: YogaAlign): YogaAlign;
-export declare function convertPositionType(value: string): YogaPositionType;
-export declare function convertFlexWrap(value: string): YogaFlexWrap;
-export declare function convertOverflow(value: string): YogaOverflow;
-export declare function convertDisplay(value: string): YogaDisplay;
+export declare type YogaAlignString = 'auto' | 'baseline' | 'center' | 'flex-end' | 'flex-start' | 'space-between' | 'space-around' | 'stretch';
+export declare function convertAlign(value: YogaAlignString, defaultValue: YogaAlign): YogaAlign;
+export declare type YogaPositionTypeString = 'absolute' | 'relative';
+export declare function convertPositionType(value: YogaPositionTypeString): YogaPositionType;
+export declare type YogaFlexWrapString = 'wrap' | 'no-wrap' | 'wrap-reverse';
+export declare function convertFlexWrap(value: YogaFlexWrapString): YogaFlexWrap;
+export declare type YogaOverflowString = 'hidden' | 'scroll' | 'visible';
+export declare function convertOverflow(value: YogaOverflowString): YogaOverflow;
+export declare type YogaDisplayString = 'none' | 'flex';
+export declare function convertDisplay(value: YogaDisplayString): YogaDisplay;

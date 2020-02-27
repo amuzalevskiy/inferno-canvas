@@ -1,12 +1,5 @@
 import YogaLayout, {
-    YogaNode,
-    YogaFlexDirection,
-    YogaJustifyContent,
-    YogaAlign,
-    YogaPositionType,
-    YogaFlexWrap,
-    YogaOverflow,
-    YogaDisplay,
+    YogaNode, YogaFlexDirection, YogaJustifyContent, YogaAlign, YogaPositionType, YogaFlexWrap, YogaOverflow, YogaDisplay
 } from "yoga-layout";
 
 const {
@@ -25,7 +18,6 @@ const {
 import {IStyleProps, TEXT_ALIGN, VERTICAL_ALIGN, ILayoutNode} from "./node";
 import { measureText, countLines } from "./renderUtils";
 import { CanvasElementRegistry } from "./CanvasElementRegistry";
-
 
 const YGMeasureModeUndefined = 0,
     YGMeasureModeExactly = 1,
@@ -94,6 +86,7 @@ class Style implements IStyleProps {
     backgroundImage?: string;
     backgroundPositionX?: number;
     backgroundPositionY?: number;
+    
     flexDirection?: YogaFlexDirection;
     justifyContent?: YogaJustifyContent;
     alignContent?: YogaAlign;
@@ -114,7 +107,8 @@ class Style implements IStyleProps {
     isTextNode: boolean = false;
 
     removeProperty(name: string) {
-        if (this.el._doc) {
+        const doc = this.el._doc;
+        if (doc && !doc.dirty) {
             this.el._doc.markDirty();
         }
 
@@ -122,7 +116,8 @@ class Style implements IStyleProps {
     }
 
     setProperty(name: string, value: any) {
-        if (this.el._doc) {
+        const doc = this.el._doc;
+        if (doc && !doc.dirty) {
             this.el._doc.markDirty();
         }
 
@@ -431,7 +426,7 @@ export class CanvasElement implements ILayoutNode {
     }
 
     setAttribute(name: string, value: any) {
-        if (this._doc) {
+        if (this._doc && !this._doc.dirty) {
             this._doc.markDirty();
         }
 
@@ -449,7 +444,7 @@ export class CanvasElement implements ILayoutNode {
     }
 
     removeAttribute(name: string) {
-        if (this._doc) {
+        if (this._doc && !this._doc.dirty) {
             this._doc.markDirty();
         }
 
@@ -468,7 +463,7 @@ export class CanvasElement implements ILayoutNode {
     }
 
     appendChild(child: CanvasElement) {
-        if (this._doc) {
+        if (this._doc && !this._doc.dirty) {
             this._doc.markDirty();
         }
 
@@ -486,7 +481,7 @@ export class CanvasElement implements ILayoutNode {
     
 
     insertBefore(newNode: CanvasElement, nextNode: CanvasElement) {
-        if (this._doc) {
+        if (this._doc && !this._doc.dirty) {
             this._doc.markDirty();
         }
 
@@ -509,7 +504,7 @@ export class CanvasElement implements ILayoutNode {
     }
 
     replaceChild(newDom: CanvasElement, lastDom: CanvasElement) {
-        if (this._doc) {
+        if (this._doc && !this._doc.dirty) {
             this._doc.markDirty();
         }
 
@@ -529,7 +524,7 @@ export class CanvasElement implements ILayoutNode {
     }
 
     removeChild(childNode: CanvasElement) {
-        if (this._doc) {
+        if (this._doc && !this._doc.dirty) {
             this._doc.markDirty();
         }
 

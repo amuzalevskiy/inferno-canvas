@@ -74,7 +74,9 @@ export function convertJustifyContent(value: JustifyContentString): YogaJustifyC
     }
 }
 
-export function convertAlign(value: string, defaultValue: YogaAlign): YogaAlign {
+export type YogaAlignString = 'auto' | 'baseline' | 'center' | 'flex-end' | 'flex-start' | 'space-between' | 'space-around' | 'stretch';
+
+export function convertAlign(value: YogaAlignString, defaultValue: YogaAlign): YogaAlign {
     switch(value) {
         case 'auto': return ALIGN_AUTO;
         case 'baseline': return ALIGN_BASELINE;
@@ -88,14 +90,16 @@ export function convertAlign(value: string, defaultValue: YogaAlign): YogaAlign 
     }
 }
 
-export function convertPositionType(value: string): YogaPositionType {
+export type YogaPositionTypeString = 'absolute' | 'relative';
+export function convertPositionType(value: YogaPositionTypeString): YogaPositionType {
     switch(value) {
         case 'absolute': return POSITION_TYPE_ABSOLUTE;
         default: return POSITION_TYPE_RELATIVE;
     }
 }
 
-export function convertFlexWrap(value: string): YogaFlexWrap {
+export type YogaFlexWrapString = 'wrap' | 'no-wrap' | 'wrap-reverse';
+export function convertFlexWrap(value: YogaFlexWrapString): YogaFlexWrap {
     switch(value) {
         case 'wrap': return WRAP_WRAP;
         case 'wrap-reverse': return WRAP_WRAP_REVERSE;
@@ -104,7 +108,8 @@ export function convertFlexWrap(value: string): YogaFlexWrap {
 
 }
 
-export function convertOverflow(value: string): YogaOverflow {
+export type YogaOverflowString = 'hidden' | 'scroll' | 'visible';
+export function convertOverflow(value: YogaOverflowString): YogaOverflow {
     switch(value) {
         case 'hidden': return OVERFLOW_HIDDEN;
         case 'scroll': return OVERFLOW_SCROLL;
@@ -113,7 +118,8 @@ export function convertOverflow(value: string): YogaOverflow {
 
 }
 
-export function convertDisplay(value: string): YogaDisplay {
+export type YogaDisplayString = 'none' | 'flex';
+export function convertDisplay(value: YogaDisplayString): YogaDisplay {
     switch(value) {
         case 'none': return DISPLAY_NONE;
         default: return DISPLAY_FLEX;

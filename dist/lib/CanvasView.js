@@ -116,6 +116,7 @@ var CanvasView = /** @class */ (function () {
             mousemove: false,
             mouseup: false
         };
+        this._contexts = [];
         this._processEvent = function (e) {
             var target;
             if (e instanceof MouseEvent) {
@@ -145,6 +146,11 @@ var CanvasView = /** @class */ (function () {
         this._spec = spec;
         this._processEvent = this._processEvent.bind(this);
         this._ctx = canvas.getContext("2d");
+        this._lastContext = {
+            font: this._ctx.font,
+            fill: this._ctx.fillStyle,
+        };
+        this._contexts.push(this._lastContext);
         this._defaultLineHeightMultiplier = defaultLineHeightMultiplier;
         this.x = left;
         this.y = top;
@@ -326,6 +332,7 @@ var CanvasView = /** @class */ (function () {
         ctx.clearRect(this.x, this.y, this._width, this._height);
         // save before clipping
         ctx.save();
+        this._addContext();
         // next line gives faster rendering for unknown reasons
         ctx.beginPath();
         ctx.rect(this.x, this.y, this._width, this._height);
@@ -334,6 +341,7 @@ var CanvasView = /** @class */ (function () {
         // render absolutes within clipping rect
         queue.render(this);
         ctx.restore();
+        this._removeContext();
     };
     CanvasView.prototype._renderNode = function (node, x, y, queue) {
         var ctx = this._ctx;
@@ -341,16 +349,20 @@ var CanvasView = /** @class */ (function () {
         var style = node.style;
         var shouldClipChildren = style.overflow === OVERFLOW_HIDDEN || style.overflow === OVERFLOW_SCROLL;
         var layoutLeft = _yogaNode.getComputedLeft() + x, layoutTop = _yogaNode.getComputedTop() + y, layoutWidth = _yogaNode.getComputedWidth(), layoutHeight = _yogaNode.getComputedHeight();
-        var borderLeft = _yogaNode.getComputedBorder(EDGE_LEFT), borderTop = _yogaNode.getComputedBorder(EDGE_TOP), borderRight = _yogaNode.getComputedBorder(EDGE_RIGHT), borderBottom = _yogaNode.getComputedBorder(EDGE_BOTTOM), borderRadius = node.style.borderRadius || 0;
+        var borderLeft = _yogaNode.getComputedBorder(EDGE_LEFT), borderTop = _yogaNode.getComputedBorder(EDGE_TOP), borderRight = _yogaNode.getComputedBorder(EDGE_RIGHT), borderBottom = _yogaNode.getComputedBorder(EDGE_BOTTOM);
+        var borderRadius = style.borderRadius || 0;
         var hasBorder = !!style.borderColor &&
             (borderTop > 0 ||
                 borderLeft > 0 ||
                 borderBottom > 0 ||
                 borderRight > 0);
         if (style.background) {
-            ctx.fillStyle = style.background;
+            if (style.background !== this._lastContext.fill) {
+                this._lastContext.fill = style.background;
+                ctx.fillStyle = style.background;
+            }
             if (borderRadius > 0) {
-                if (borderRadius > 0 && hasBorder) {
+                if (hasBorder) {
                     // the only found way to fix rendering artifacts with rounded borders
                     // 9 hrs wasted here
                     // this still doesn't support semi-transparent borders
@@ -368,15 +380,10 @@ var CanvasView = /** @class */ (function () {
             }
         }
         if (style.shadowColor && style.shadowColor !== "transparent") {
-            var shadowOffsetX = Math.round(style.shadowOffsetX) || 0;
-            var shadowOffsetY = Math.round(style.shadowOffsetY) || 0;
-            var shadowBlur = Math.round(style.shadowBlur) || 0;
-            if (shadowBlur !== 0 || shadowOffsetX !== 0 || shadowOffsetY !== 0) {
-                this._renderShadow(ctx, shadowBlur, shadowOffsetX, shadowOffsetY, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight, style, hasBorder);
-            }
+            this._renderShadow(ctx, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight, style, hasBorder);
         }
         if (style.backgroundImage) {
-            this._renderBackgroundImage(style, layoutLeft, layoutTop, layoutWidth, layoutHeight, borderLeft, borderTop, borderRight, borderBottom, borderRadius, ctx);
+            this._renderBackgroundImage(style, layoutLeft, layoutTop, layoutWidth, layoutHeight, borderLeft, borderTop, borderRight, borderBottom);
         }
         if (hasBorder) {
             this._renderBorder(style.borderColor, borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
@@ -384,7 +391,7 @@ var CanvasView = /** @class */ (function () {
         if (shouldClipChildren) {
             // set clipping
             ctx.save();
-            this._applyClip(borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
+            this._clipNode(borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
             queue = new ZIndexQueue_1.ZIndexQueue();
         }
         if (node.children) {
@@ -399,13 +406,13 @@ var CanvasView = /** @class */ (function () {
                     });
                 }
                 else {
-                    this._renderNode(node.children[i], layoutLeft, layoutTop, queue);
+                    this._renderNode(childNode, layoutLeft, layoutTop, queue);
                 }
             }
         }
         else if (node.content !== undefined) {
             var paddingLeft = _yogaNode.getComputedPadding(EDGE_LEFT), paddingTop = _yogaNode.getComputedPadding(EDGE_TOP), paddingRight = _yogaNode.getComputedPadding(EDGE_RIGHT), paddingBottom = _yogaNode.getComputedPadding(EDGE_BOTTOM);
-            this._renderText(ctx, style, layoutLeft + paddingLeft + borderLeft, layoutTop + paddingTop + borderTop, layoutWidth -
+            this._renderText(node, layoutLeft + paddingLeft + borderLeft, layoutTop + paddingTop + borderTop, layoutWidth -
                 paddingLeft -
                 paddingRight -
                 borderLeft -
@@ -413,83 +420,112 @@ var CanvasView = /** @class */ (function () {
                 paddingTop -
                 paddingBottom -
                 borderTop -
-                borderBottom, node);
+                borderBottom);
         }
         if (shouldClipChildren) {
             // render absolutes within clipping box
             queue.render(this);
-            ctx.restore();
+            this._restoreNodeClip();
         }
     };
-    CanvasView.prototype._renderShadow = function (ctx, shadowBlur, shadowOffsetX, shadowOffsetY, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight, style, hasBorder) {
+    CanvasView.prototype._renderShadow = function (ctx, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight, style, hasBorder) {
         // a bit tricky
         // as shadow should not be visible under element
         // setup clipping of the content
         ctx.save();
+        var shadowBlur = Math.round(style.shadowBlur) || 0, shadowOffsetX = Math.round(style.shadowOffsetX) || 0, shadowOffsetY = Math.round(style.shadowOffsetY) || 0;
         var borderIncrease = shadowBlur + Math.max(Math.abs(shadowOffsetX), Math.abs(shadowOffsetY));
         renderUtils_1.createBorderPath(ctx, borderIncrease, borderIncrease, borderIncrease, borderIncrease, borderIncrease + borderRadius, layoutLeft - borderIncrease, layoutTop - borderIncrease, layoutWidth + 2 * borderIncrease, layoutHeight + 2 * borderIncrease);
         ctx.clip();
         // init shadow
         ctx.shadowColor = style.shadowColor;
-        ctx.shadowBlur = style.shadowBlur;
-        ctx.shadowOffsetX = style.shadowOffsetX;
-        ctx.shadowOffsetY = style.shadowOffsetY;
+        ctx.shadowBlur = shadowBlur;
+        ctx.shadowOffsetX = shadowOffsetX;
+        ctx.shadowOffsetY = shadowOffsetY;
         ctx.beginPath();
         renderUtils_1.outerBorderPath(ctx, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight, true);
         ctx.fillStyle = hasBorder ? style.borderColor : style.background;
         ctx.fill();
         ctx.restore();
     };
-    CanvasView.prototype._renderText = function (ctx, style, textLeft, textTop, textWidth, textHeight, node) {
+    CanvasView.prototype._renderText = function (node, left, top, width, height) {
+        var _yogaNode = node._yogaNode;
+        var paddingLeft = _yogaNode.getComputedPadding(EDGE_LEFT), paddingTop = _yogaNode.getComputedPadding(EDGE_TOP), paddingRight = _yogaNode.getComputedPadding(EDGE_RIGHT), paddingBottom = _yogaNode.getComputedPadding(EDGE_BOTTOM);
+        var style = node.style;
         if (!style.color || !style.font || style.fontSize === undefined) {
             // unable to render
             return;
         }
-        ctx.fillStyle = style.color;
-        ctx.font = style.fontSize + "px " + style.font;
-        if (node.style.maxLines && node.style.maxLines > 1) {
-            renderUtils_1.renderMultilineText(ctx, node.content, textLeft, textTop, textWidth, textHeight, style.lineHeight
+        var ctx = this._ctx;
+        if (style.color !== this._lastContext.fill) {
+            this._lastContext.fill = style.color;
+            ctx.fillStyle = style.color;
+        }
+        var font = style.fontSize + "px " + style.font;
+        if (font !== this._lastContext.font) {
+            this._lastContext.font = font;
+            ctx.font = font;
+        }
+        if (style.maxLines && style.maxLines > 1) {
+            renderUtils_1.renderMultilineText(ctx, node.content, left + paddingLeft, top + paddingTop, width - paddingLeft - paddingRight, height - paddingTop - paddingBottom, style.lineHeight
                 ? style.lineHeight
-                : style.fontSize * this._defaultLineHeightMultiplier, style.textAlign, style.verticalAlign, node.style.maxLines, style.textOverflow === "ellipsis" ? ellipsis : style.textOverflow);
+                : style.fontSize * this._defaultLineHeightMultiplier, style.textAlign, style.verticalAlign, style.maxLines, style.textOverflow === "ellipsis" ? ellipsis : style.textOverflow);
         }
         else {
-            renderUtils_1.renderText(ctx, node.content, textLeft, textTop, textWidth, textHeight, style.textAlign, style.verticalAlign, style.textOverflow === "ellipsis" ? ellipsis : style.textOverflow, node);
+            renderUtils_1.renderText(ctx, node.content, left + paddingLeft, top + paddingTop, width - paddingLeft - paddingRight, height - paddingTop - paddingBottom, style.textAlign, style.verticalAlign, style.textOverflow === "ellipsis" ? ellipsis : style.textOverflow, node);
         }
     };
-    CanvasView.prototype._renderBackgroundImage = function (style, layoutLeft, layoutTop, layoutWidth, layoutHeight, borderLeft, borderTop, borderRight, borderBottom, borderRadius, ctx) {
+    CanvasView.prototype._renderBackgroundImage = function (style, layoutLeft, layoutTop, layoutWidth, layoutHeight, borderLeft, borderTop, borderRight, borderBottom) {
         var imgMaybe = defaultImageCache.get(style.backgroundImage);
-        if (!(imgMaybe instanceof Error)) {
-            if (imgMaybe instanceof HTMLImageElement) {
-                var backgroundImage = imgMaybe;
-                var targetRect = {
-                    left: layoutLeft + borderLeft,
-                    top: layoutTop + borderTop,
-                    width: layoutWidth -
-                        borderLeft -
-                        borderRight,
-                    height: layoutHeight -
-                        borderTop -
-                        borderBottom
-                };
-                var imgWidth = backgroundImage.width, imgHeight = backgroundImage.height;
-                var sourceRect = getImgBackgroundSourceRect(style, targetRect, imgWidth, imgHeight);
-                drawImageWithCache(ctx, backgroundImage, sourceRect, targetRect);
-            }
-            else {
-                // plan rendering
-                renderQueue_1.renderQueue.renderAfter(this, imgMaybe);
-            }
+        if (imgMaybe instanceof HTMLImageElement) {
+            var backgroundImage = imgMaybe;
+            var targetRect = {
+                left: layoutLeft + borderLeft,
+                top: layoutTop + borderTop,
+                width: layoutWidth -
+                    borderLeft -
+                    borderRight,
+                height: layoutHeight -
+                    borderTop -
+                    borderBottom
+            };
+            var imgWidth = backgroundImage.width, imgHeight = backgroundImage.height;
+            var sourceRect = getImgBackgroundSourceRect(style, targetRect, imgWidth, imgHeight);
+            drawImageWithCache(this._ctx, backgroundImage, sourceRect, targetRect);
+        }
+        else if (!(imgMaybe instanceof Error)) {
+            // plan rendering
+            renderQueue_1.renderQueue.renderAfter(this, imgMaybe);
         }
     };
-    CanvasView.prototype._applyClip = function (borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight) {
+    CanvasView.prototype._clipNode = function (borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight) {
         var ctx = this._ctx;
         renderUtils_1.closedInnerBorderPath(ctx, borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
         ctx.clip();
+        this._addContext();
+    };
+    CanvasView.prototype._addContext = function () {
+        this._lastContext = {
+            font: this._lastContext.font,
+            fill: this._lastContext.fill,
+        };
+        this._contexts.push(this._lastContext);
+    };
+    CanvasView.prototype._restoreNodeClip = function () {
+        this._ctx.restore();
+        this._removeContext();
+    };
+    CanvasView.prototype._removeContext = function () {
+        this._contexts.pop();
+        this._lastContext = this._contexts[this._contexts.length - 1];
     };
     CanvasView.prototype._renderBorder = function (strokeStyle, borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight) {
         var ctx = this._ctx;
         renderUtils_1.createBorderPath(ctx, borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
-        ctx.fillStyle = strokeStyle;
+        if (strokeStyle !== this._lastContext.fill) {
+            this._lastContext.fill = strokeStyle;
+            ctx.fillStyle = strokeStyle;
+        }
         ctx.fill();
     };
     return CanvasView;

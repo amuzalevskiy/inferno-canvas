@@ -9,7 +9,8 @@ import {
   YogaDisplay
 } from "yoga-layout";
 import { LayoutEvent } from "./LayoutEvent";
-import { FlexDirectionString, JustifyContentString } from "./convertStringToYogaConst";
+import { FlexDirectionString, JustifyContentString, YogaAlignString, YogaFlexWrapString, YogaPositionTypeString, YogaOverflowString, YogaDisplayString } from "./convertStringToYogaConst";
+import { TEXT_ALIGN_STRING, VERTICAL_ALIGN_STRING } from "./parseStyle";
 
 export const TEXT_ALIGN_LEFT = 0;
 export const TEXT_ALIGN_CENTER = 1;
@@ -104,15 +105,15 @@ export interface IStyleProps extends IBaseProps {
 export interface IStyleDefinition extends IBaseProps {
   flexDirection?: FlexDirectionString;
   justifyContent?: JustifyContentString;
-  alignContent?: string;
-  alignItems?: string;
-  alignSelf?: string;
-  position?: string;
-  flexWrap?: string;
-  overflow?: string;
-  display?: string;
-  textAlign?: string;
-  verticalAlign?: string;
+  alignContent?: YogaAlignString;
+  alignItems?: YogaAlignString;
+  alignSelf?: YogaAlignString;
+  position?: YogaPositionTypeString;
+  flexWrap?: YogaFlexWrapString;
+  overflow?: YogaOverflowString;
+  display?: YogaDisplayString;
+  textAlign?: TEXT_ALIGN_STRING;
+  verticalAlign?: VERTICAL_ALIGN_STRING;
 }
 export interface INode {
   type?: string;

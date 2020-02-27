@@ -173,13 +173,13 @@ export class CanvasView {
 
   private _contexts: {
     font: string;
-    fill: string;
-  }[] = [{
-    font: "",
-    fill: "",
-  }];
+    fill: string | CanvasGradient | CanvasPattern;
+  }[] = [];
 
-  private _lastContext = this._contexts[0];
+  private _lastContext: {
+    font: string;
+    fill: string | CanvasGradient | CanvasPattern;
+  };
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -195,6 +195,11 @@ export class CanvasView {
     this._spec = spec;
     this._processEvent = this._processEvent.bind(this);
     this._ctx = canvas.getContext("2d")!;
+    this._lastContext = {
+      font: this._ctx.font,
+      fill: this._ctx.fillStyle,
+    };
+    this._contexts.push(this._lastContext);
     this._defaultLineHeightMultiplier = defaultLineHeightMultiplier;
     this.x = left;
     this.y = top;
@@ -450,6 +455,7 @@ export class CanvasView {
     ctx.clearRect(this.x, this.y, this._width, this._height);
     // save before clipping
     ctx.save();
+    this._addContext();
     // next line gives faster rendering for unknown reasons
     ctx.beginPath();
     ctx.rect(this.x, this.y, this._width, this._height);
@@ -458,6 +464,7 @@ export class CanvasView {
     // render absolutes within clipping rect
     queue.render(this);
     ctx.restore();
+    this._removeContext();
   }
 
   public _renderNode(
@@ -540,12 +547,7 @@ export class CanvasView {
     if (shouldClipChildren) {
       // set clipping
       ctx.save();
-      this._lastContext = {
-        font: this._lastContext.font,
-        fill: this._lastContext.fill,
-      };
-      this._contexts.push(this._lastContext);
-      this._applyClip(borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
+      this._clipNode(borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
       queue = new ZIndexQueue();
     }
 
@@ -592,8 +594,7 @@ export class CanvasView {
     if (shouldClipChildren) {
       // render absolutes within clipping box
       queue.render(this);
-      ctx.restore();
-      this._lastContext = this._contexts.pop()!;
+      this._restoreNodeClip();
     }
   }
 
@@ -729,10 +730,29 @@ export class CanvasView {
     }
   }
 
-  private _applyClip(borderLeft: number, borderTop: number, borderRight: number, borderBottom: number, borderRadius: number, layoutLeft: number, layoutTop: number, layoutWidth: number, layoutHeight: number) {
+  private _clipNode(borderLeft: number, borderTop: number, borderRight: number, borderBottom: number, borderRadius: number, layoutLeft: number, layoutTop: number, layoutWidth: number, layoutHeight: number) {
     var ctx = this._ctx;
     closedInnerBorderPath(ctx, borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
     ctx.clip();
+    this._addContext();
+  }
+
+  private _addContext() {
+    this._lastContext = {
+      font: this._lastContext.font,
+      fill: this._lastContext.fill,
+    };
+    this._contexts.push(this._lastContext);
+  }
+
+  private _restoreNodeClip() {
+    this._ctx.restore();
+    this._removeContext();
+  }
+
+  private _removeContext() {
+    this._contexts.pop();
+    this._lastContext = this._contexts[this._contexts.length - 1];
   }
 
   private _renderBorder(strokeStyle: string, borderLeft: number, borderTop: number, borderRight: number, borderBottom: number, borderRadius: number, layoutLeft: number, layoutTop: number, layoutWidth: number, layoutHeight: number) {
