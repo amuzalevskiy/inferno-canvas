@@ -16,6 +16,8 @@ export declare class CanvasView {
     private _direction;
     private _previousTarget;
     private _listenersState;
+    _currentQueue: ZIndexQueue;
+    private queues;
     private _lastCachedContext;
     constructor(canvas: HTMLCanvasElement, spec: CanvasElement, left: number, top: number, width: number, height: number, direction?: YogaDirection, defaultLineHeightMultiplier?: number);
     _setDoc(doc: CanvasDocument): void;
@@ -36,13 +38,12 @@ export declare class CanvasView {
     private _trackMouseEnterAndLeave;
     private _layout;
     render(): void;
-    _renderNode(node: ILayoutNode, x: number, y: number, queue: ZIndexQueue): void;
+    _renderNode(node: ILayoutNode, x: number, y: number): void;
     private _renderShadow;
     private _renderText;
     private _renderBackgroundImage;
     private _clipNode;
-    private _addContext;
-    private _restoreNodeClip;
-    private _removeContext;
+    _addContext(): void;
+    _removeContext(): void;
     private _renderBorder;
 }

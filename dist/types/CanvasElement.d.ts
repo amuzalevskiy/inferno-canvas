@@ -71,6 +71,7 @@ declare class Style implements IStyleProps {
     display?: YogaDisplay;
     textAlign?: TEXT_ALIGN;
     verticalAlign?: VERTICAL_ALIGN;
+    _fullFont?: string;
     constructor(el: CanvasElement);
     isMeasureFunctionSet: boolean;
     isTextNode: boolean;

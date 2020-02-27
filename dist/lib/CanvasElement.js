@@ -15,7 +15,7 @@ var Style = /** @class */ (function () {
         if (doc && !doc.dirty) {
             this.el._doc.markDirty();
         }
-        this.setProperty(name, NaN);
+        this.setProperty(name, undefined);
     };
     Style.prototype.setProperty = function (name, value) {
         var doc = this.el._doc;
@@ -27,6 +27,10 @@ var Style = /** @class */ (function () {
         switch (name) {
             case "font":
             case "fontSize":
+                if (this.fontSize && this.font) {
+                    this._fullFont = this.fontSize + "px " + this.font;
+                }
+            // tslint:disable-next-line:no-switch-case-fall-through
             case "maxLines":
                 if (this.isMeasureFunctionSet) {
                     // invalidate layout
@@ -36,44 +40,44 @@ var Style = /** @class */ (function () {
                 }
                 break;
             case "alignContent":
-                node.setAlignContent(value);
+                node.setAlignContent(value !== undefined ? value : NaN);
                 break;
             case "alignItems":
-                node.setAlignItems(value);
+                node.setAlignItems(value !== undefined ? value : NaN);
                 break;
             case "alignSelf":
-                node.setAlignSelf(value);
+                node.setAlignSelf(value !== undefined ? value : NaN);
                 break;
             case "aspectRatio":
                 node.setAspectRatio(value !== undefined ? value : NaN);
                 break;
             case "display":
-                node.setDisplay(value);
+                node.setDisplay(value !== undefined ? value : NaN);
                 break;
             case "flex":
-                node.setFlex(value);
+                node.setFlex(value !== undefined ? value : NaN);
                 break;
             case "flexBasis":
-                node.setFlexBasis(value);
+                node.setFlexBasis(value !== undefined ? value : NaN);
                 break;
             case "flexDirection":
-                node.setFlexDirection(value);
+                node.setFlexDirection(value !== undefined ? value : NaN);
                 break;
             case "flexGrow":
-                node.setFlexGrow(value);
+                node.setFlexGrow(value !== undefined ? value : NaN);
                 break;
             case "flexShrink":
-                node.setFlexShrink(value);
+                node.setFlexShrink(value !== undefined ? value : NaN);
                 break;
             case "flexWrap":
-                node.setFlexWrap(value);
+                node.setFlexWrap(value !== undefined ? value : NaN);
                 break;
             case "height":
-                node.setHeight(value);
+                node.setHeight(value !== undefined ? value : NaN);
                 this.validateMeasureFun();
                 break;
             case "justifyContent":
-                node.setJustifyContent(value);
+                node.setJustifyContent(value !== undefined ? value : NaN);
                 break;
             case "maxHeight":
                 node.setMaxHeight(value !== undefined ? value : NaN);
@@ -88,13 +92,13 @@ var Style = /** @class */ (function () {
                 node.setMinWidth(value !== undefined ? value : NaN);
                 break;
             case "overflow":
-                node.setOverflow(value);
+                node.setOverflow(value !== undefined ? value : NaN);
                 break;
             case "position":
-                node.setPositionType(value);
+                node.setPositionType(value !== undefined ? value : NaN);
                 break;
             case "width":
-                node.setWidth(value);
+                node.setWidth(value !== undefined ? value : NaN);
                 this.validateMeasureFun();
                 break;
             case "top":

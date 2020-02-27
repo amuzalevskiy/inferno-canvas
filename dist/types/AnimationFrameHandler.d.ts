@@ -11,12 +11,13 @@ export declare class AnimationFrameHandler {
     private avgCycleTimeSpent;
     private avgRenderCycleTimeSpent;
     private readonly registry;
+    private enableTimeReport;
     constructor(registry: CanvasElementRegistry, enableTimeReport: boolean);
     _addView(view: CanvasView): void;
     _removeView(view: CanvasView): void;
     _checkEnqueued(): void;
     _pushCb(cb: RafCallback): number;
     _removeCb(index: number): void;
-    _process: () => void;
+    _process: (cycleStart: number) => void;
 }
 export {};

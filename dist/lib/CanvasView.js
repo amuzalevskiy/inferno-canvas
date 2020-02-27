@@ -117,6 +117,8 @@ var CanvasView = /** @class */ (function () {
             mousemove: false,
             mouseup: false
         };
+        this._currentQueue = new ZIndexQueue_1.ZIndexQueue();
+        this.queues = [];
         this._processEvent = function (e) {
             var target;
             if (e instanceof MouseEvent) {
@@ -323,7 +325,6 @@ var CanvasView = /** @class */ (function () {
     };
     CanvasView.prototype.render = function () {
         this._layout();
-        var queue = new ZIndexQueue_1.ZIndexQueue();
         var ctx = this._ctx;
         ctx.clearRect(this.x, this.y, this._width, this._height);
         // save before clipping
@@ -333,17 +334,19 @@ var CanvasView = /** @class */ (function () {
         ctx.beginPath();
         ctx.rect(this.x, this.y, this._width, this._height);
         ctx.clip();
-        this._renderNode(this._spec, this.x, this.y, queue);
+        this._renderNode(this._spec, this.x, this.y);
         // render absolutes within clipping rect
-        queue.render(this);
+        this._currentQueue.render(this);
         ctx.restore();
         this._removeContext();
     };
-    CanvasView.prototype._renderNode = function (node, x, y, queue) {
+    CanvasView.prototype._renderNode = function (node, x, y) {
         var ctx = this._ctx;
         var _yogaNode = node._yogaNode;
         var style = node.style;
-        var shouldClipChildren = style.overflow === OVERFLOW_HIDDEN || style.overflow === OVERFLOW_SCROLL;
+        var overflow = style.overflow;
+        var shouldClipChildren = !!overflow;
+        // const shouldClipChildren = overflow === OVERFLOW_HIDDEN || overflow === OVERFLOW_SCROLL;
         var layoutLeft = _yogaNode.getComputedLeft() + x, layoutTop = _yogaNode.getComputedTop() + y, layoutWidth = _yogaNode.getComputedWidth(), layoutHeight = _yogaNode.getComputedHeight();
         var borderLeft = _yogaNode.getComputedBorder(EDGE_LEFT), borderTop = _yogaNode.getComputedBorder(EDGE_TOP), borderRight = _yogaNode.getComputedBorder(EDGE_RIGHT), borderBottom = _yogaNode.getComputedBorder(EDGE_BOTTOM);
         var borderRadius = style.borderRadius || 0;
@@ -383,23 +386,22 @@ var CanvasView = /** @class */ (function () {
         }
         if (shouldClipChildren) {
             // set clipping
-            ctx.save();
             this._clipNode(borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
-            queue = new ZIndexQueue_1.ZIndexQueue();
+            this._addContext();
         }
         if (node.children) {
             var len = node.children.length;
             for (var i = 0; i < len; i++) {
                 var childNode = node.children[i];
                 if (childNode.style.position === POSITION_TYPE_ABSOLUTE) {
-                    queue.push({
+                    this._currentQueue.push({
                         node: childNode,
                         x: layoutLeft,
                         y: layoutTop,
                     });
                 }
                 else {
-                    this._renderNode(childNode, layoutLeft, layoutTop, queue);
+                    this._renderNode(childNode, layoutLeft, layoutTop);
                 }
             }
         }
@@ -417,8 +419,8 @@ var CanvasView = /** @class */ (function () {
         }
         if (shouldClipChildren) {
             // render absolutes within clipping box
-            queue.render(this);
-            this._restoreNodeClip();
+            this._currentQueue.render(this);
+            this._removeContext();
         }
     };
     CanvasView.prototype._renderShadow = function (ctx, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight, style, hasBorder) {
@@ -445,17 +447,17 @@ var CanvasView = /** @class */ (function () {
         var _yogaNode = node._yogaNode;
         var paddingLeft = _yogaNode.getComputedPadding(EDGE_LEFT), paddingTop = _yogaNode.getComputedPadding(EDGE_TOP), paddingRight = _yogaNode.getComputedPadding(EDGE_RIGHT), paddingBottom = _yogaNode.getComputedPadding(EDGE_BOTTOM);
         var style = node.style;
-        if (!style.color || !style.font || style.fontSize === undefined) {
+        if (!style.color || !style._fullFont) {
             // unable to render
             return;
         }
         var ctx = this._ctx;
         this._lastCachedContext.setFillStyle(style.color);
-        this._lastCachedContext.setFont(style.fontSize + "px " + style.font);
+        this._lastCachedContext.setFont(style._fullFont);
         if (style.maxLines && style.maxLines > 1) {
             renderUtils_1.renderMultilineText(ctx, this._lastCachedContext, node.content, left + paddingLeft, top + paddingTop, width - paddingLeft - paddingRight, height - paddingTop - paddingBottom, style.lineHeight
                 ? style.lineHeight
-                : style.fontSize * this._defaultLineHeightMultiplier, style.textAlign, style.verticalAlign, style.maxLines, style.textOverflow === "ellipsis" ? ellipsis : style.textOverflow);
+                : style.fontSize ? style.fontSize * this._defaultLineHeightMultiplier : 0, style.textAlign, style.verticalAlign, style.maxLines, style.textOverflow === "ellipsis" ? ellipsis : style.textOverflow);
         }
         else {
             renderUtils_1.renderText(ctx, this._lastCachedContext, node.content, left + paddingLeft, top + paddingTop, width - paddingLeft - paddingRight, height - paddingTop - paddingBottom, style.textAlign, style.verticalAlign, style.textOverflow === "ellipsis" ? ellipsis : style.textOverflow, node);
@@ -463,8 +465,8 @@ var CanvasView = /** @class */ (function () {
     };
     CanvasView.prototype._renderBackgroundImage = function (style, layoutLeft, layoutTop, layoutWidth, layoutHeight, borderLeft, borderTop, borderRight, borderBottom) {
         var imgMaybe = defaultImageCache.get(style.backgroundImage);
-        if (imgMaybe instanceof HTMLImageElement) {
-            var backgroundImage = imgMaybe;
+        if (imgMaybe instanceof ImageCache_1.ImageCacheEntry) {
+            var cacheEntry = imgMaybe;
             var targetRect = {
                 left: layoutLeft + borderLeft,
                 top: layoutTop + borderTop,
@@ -475,9 +477,8 @@ var CanvasView = /** @class */ (function () {
                     borderTop -
                     borderBottom
             };
-            var imgWidth = backgroundImage.width, imgHeight = backgroundImage.height;
-            var sourceRect = getImgBackgroundSourceRect(style, targetRect, imgWidth, imgHeight);
-            drawImageWithCache(this._ctx, backgroundImage, sourceRect, targetRect);
+            var sourceRect = getImgBackgroundSourceRect(style, targetRect, cacheEntry.width, cacheEntry.height);
+            drawImageWithCache(this._ctx, cacheEntry.image, sourceRect, targetRect);
         }
         else if (!(imgMaybe instanceof Error)) {
             // plan rendering
@@ -488,16 +489,16 @@ var CanvasView = /** @class */ (function () {
         var ctx = this._ctx;
         renderUtils_1.closedInnerBorderPath(ctx, borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
         ctx.clip();
-        this._addContext();
     };
     CanvasView.prototype._addContext = function () {
+        this.queues.push(this._currentQueue);
+        this._currentQueue = new ZIndexQueue_1.ZIndexQueue();
+        this._ctx.save();
         this._lastCachedContext = this._lastCachedContext.createNestedContext();
     };
-    CanvasView.prototype._restoreNodeClip = function () {
-        this._ctx.restore();
-        this._removeContext();
-    };
     CanvasView.prototype._removeContext = function () {
+        this._currentQueue = this.queues.pop();
+        this._ctx.restore();
         this._lastCachedContext = this._lastCachedContext.getParentContext();
     };
     CanvasView.prototype._renderBorder = function (strokeStyle, borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight) {

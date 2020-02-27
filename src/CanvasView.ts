@@ -172,6 +172,8 @@ export class CanvasView {
     mouseup: false
   };
 
+  public _currentQueue: ZIndexQueue = new ZIndexQueue();
+  private queues: ZIndexQueue[] = [];
   private _lastCachedContext: CachedCanvasContext;
 
   constructor(
@@ -439,7 +441,6 @@ export class CanvasView {
 
   public render() {
     this._layout();
-    var queue = new ZIndexQueue();
     let ctx = this._ctx;
     ctx.clearRect(this.x, this.y, this._width, this._height);
     // save before clipping
@@ -449,9 +450,9 @@ export class CanvasView {
     ctx.beginPath();
     ctx.rect(this.x, this.y, this._width, this._height);
     ctx.clip();
-    this._renderNode(this._spec, this.x, this.y, queue);
+    this._renderNode(this._spec, this.x, this.y);
     // render absolutes within clipping rect
-    queue.render(this);
+    this._currentQueue.render(this);
     ctx.restore();
     this._removeContext();
   }
@@ -459,8 +460,7 @@ export class CanvasView {
   public _renderNode(
     node: ILayoutNode,
     x: number,
-    y: number,
-    queue: ZIndexQueue
+    y: number
   ) {
     const ctx = this._ctx;
     const _yogaNode = node._yogaNode;
@@ -534,9 +534,8 @@ export class CanvasView {
 
     if (shouldClipChildren) {
       // set clipping
-      ctx.save();
       this._clipNode(borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
-      queue = new ZIndexQueue();
+      this._addContext();
     }
 
     if (node.children) {
@@ -544,7 +543,7 @@ export class CanvasView {
       for (var i = 0; i < len; i++) {
         var childNode = node.children[i];
         if (childNode.style.position === POSITION_TYPE_ABSOLUTE) {
-          queue.push({
+          this._currentQueue.push({
             node: childNode,
             x: layoutLeft,
             y: layoutTop,
@@ -553,8 +552,7 @@ export class CanvasView {
           this._renderNode(
             childNode,
             layoutLeft,
-            layoutTop,
-            queue
+            layoutTop
           );
         }
       }
@@ -581,8 +579,8 @@ export class CanvasView {
 
     if (shouldClipChildren) {
       // render absolutes within clipping box
-      queue.render(this);
-      this._restoreNodeClip();
+      this._currentQueue.render(this);
+      this._removeContext();
     }
   }
 
@@ -658,7 +656,7 @@ export class CanvasView {
         height - paddingTop - paddingBottom,
         style.lineHeight
           ? style.lineHeight
-          : style.fontSize * this._defaultLineHeightMultiplier,
+          : style.fontSize ? style.fontSize * this._defaultLineHeightMultiplier : 0,
         style.textAlign,
         style.verticalAlign,
         style.maxLines,
@@ -714,19 +712,18 @@ export class CanvasView {
     var ctx = this._ctx;
     closedInnerBorderPath(ctx, borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
     ctx.clip();
-    this._addContext();
   }
 
-  private _addContext() {
+  public _addContext() {
+    this.queues.push(this._currentQueue);
+    this._currentQueue = new ZIndexQueue();
+    this._ctx.save();
     this._lastCachedContext = this._lastCachedContext.createNestedContext();
   }
 
-  private _restoreNodeClip() {
+  public _removeContext() {
+    this._currentQueue = this.queues.pop()!;
     this._ctx.restore();
-    this._removeContext();
-  }
-
-  private _removeContext() {
     this._lastCachedContext = this._lastCachedContext.getParentContext();
   }
 
