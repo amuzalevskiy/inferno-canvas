@@ -28,7 +28,6 @@ var ZIndexQueue = /** @class */ (function () {
         if (this.empty) {
             return;
         }
-        var queue;
         var zIndexes = Array.from(this.queue.keys());
         zIndexes.sort();
         for (var i = 0; i < zIndexes.length; i += 1) {
@@ -37,9 +36,10 @@ var ZIndexQueue = /** @class */ (function () {
             for (var j = 0; j < renderSpecs.length; j += 1) {
                 var spec = renderSpecs[j];
                 // all inner items has its own zIndex Queue
-                queue = new ZIndexQueue();
-                view._renderNode(spec.node, spec.x, spec.y, queue);
-                queue.render(view);
+                view._addContext();
+                view._renderNode(spec.node, spec.x, spec.y);
+                view._currentQueue.render(view);
+                view._removeContext();
             }
         }
     };

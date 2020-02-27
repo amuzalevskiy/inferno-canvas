@@ -8,6 +8,7 @@ var renderQueue_1 = require("./renderQueue");
 var ZIndexQueue_1 = require("./ZIndexQueue");
 var LayoutEvent_1 = require("./LayoutEvent");
 var TextureAtlas_1 = require("./TextureAtlas");
+var CachedCanvasContext_1 = require("./CachedCanvasContext");
 var ellipsis = String.fromCharCode(0x2026);
 var defaultImageCache = ImageCache_1.ImageCache.createBasketsImageCache({
     basketLifetime: 1500,
@@ -116,6 +117,8 @@ var CanvasView = /** @class */ (function () {
             mousemove: false,
             mouseup: false
         };
+        this._currentQueue = new ZIndexQueue_1.ZIndexQueue();
+        this.queues = [];
         this._processEvent = function (e) {
             var target;
             if (e instanceof MouseEvent) {
@@ -145,6 +148,7 @@ var CanvasView = /** @class */ (function () {
         this._spec = spec;
         this._processEvent = this._processEvent.bind(this);
         this._ctx = canvas.getContext("2d");
+        this._lastCachedContext = new CachedCanvasContext_1.CachedCanvasContext(this._ctx, this._ctx);
         this._defaultLineHeightMultiplier = defaultLineHeightMultiplier;
         this.x = left;
         this.y = top;
@@ -321,36 +325,40 @@ var CanvasView = /** @class */ (function () {
     };
     CanvasView.prototype.render = function () {
         this._layout();
-        var queue = new ZIndexQueue_1.ZIndexQueue();
         var ctx = this._ctx;
         ctx.clearRect(this.x, this.y, this._width, this._height);
         // save before clipping
         ctx.save();
+        this._addContext();
         // next line gives faster rendering for unknown reasons
         ctx.beginPath();
         ctx.rect(this.x, this.y, this._width, this._height);
         ctx.clip();
-        this._renderNode(this._spec, this.x, this.y, queue);
+        this._renderNode(this._spec, this.x, this.y);
         // render absolutes within clipping rect
-        queue.render(this);
+        this._currentQueue.render(this);
         ctx.restore();
+        this._removeContext();
     };
-    CanvasView.prototype._renderNode = function (node, x, y, queue) {
+    CanvasView.prototype._renderNode = function (node, x, y) {
         var ctx = this._ctx;
         var _yogaNode = node._yogaNode;
         var style = node.style;
-        var shouldClipChildren = style.overflow === OVERFLOW_HIDDEN || style.overflow === OVERFLOW_SCROLL;
+        var overflow = style.overflow;
+        var shouldClipChildren = !!overflow;
+        // const shouldClipChildren = overflow === OVERFLOW_HIDDEN || overflow === OVERFLOW_SCROLL;
         var layoutLeft = _yogaNode.getComputedLeft() + x, layoutTop = _yogaNode.getComputedTop() + y, layoutWidth = _yogaNode.getComputedWidth(), layoutHeight = _yogaNode.getComputedHeight();
-        var borderLeft = _yogaNode.getComputedBorder(EDGE_LEFT), borderTop = _yogaNode.getComputedBorder(EDGE_TOP), borderRight = _yogaNode.getComputedBorder(EDGE_RIGHT), borderBottom = _yogaNode.getComputedBorder(EDGE_BOTTOM), borderRadius = node.style.borderRadius || 0;
+        var borderLeft = _yogaNode.getComputedBorder(EDGE_LEFT), borderTop = _yogaNode.getComputedBorder(EDGE_TOP), borderRight = _yogaNode.getComputedBorder(EDGE_RIGHT), borderBottom = _yogaNode.getComputedBorder(EDGE_BOTTOM);
+        var borderRadius = style.borderRadius || 0;
         var hasBorder = !!style.borderColor &&
             (borderTop > 0 ||
                 borderLeft > 0 ||
                 borderBottom > 0 ||
                 borderRight > 0);
         if (style.background) {
-            ctx.fillStyle = style.background;
+            this._lastCachedContext.setFillStyle(style.background);
             if (borderRadius > 0) {
-                if (borderRadius > 0 && hasBorder) {
+                if (hasBorder) {
                     // the only found way to fix rendering artifacts with rounded borders
                     // 9 hrs wasted here
                     // this still doesn't support semi-transparent borders
@@ -368,44 +376,38 @@ var CanvasView = /** @class */ (function () {
             }
         }
         if (style.shadowColor && style.shadowColor !== "transparent") {
-            var shadowOffsetX = Math.round(style.shadowOffsetX) || 0;
-            var shadowOffsetY = Math.round(style.shadowOffsetY) || 0;
-            var shadowBlur = Math.round(style.shadowBlur) || 0;
-            if (shadowBlur !== 0 || shadowOffsetX !== 0 || shadowOffsetY !== 0) {
-                this._renderShadow(ctx, shadowBlur, shadowOffsetX, shadowOffsetY, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight, style, hasBorder);
-            }
+            this._renderShadow(ctx, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight, style, hasBorder);
         }
         if (style.backgroundImage) {
-            this._renderBackgroundImage(style, layoutLeft, layoutTop, layoutWidth, layoutHeight, borderLeft, borderTop, borderRight, borderBottom, borderRadius, ctx);
+            this._renderBackgroundImage(style, layoutLeft, layoutTop, layoutWidth, layoutHeight, borderLeft, borderTop, borderRight, borderBottom);
         }
         if (hasBorder) {
             this._renderBorder(style.borderColor, borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
         }
         if (shouldClipChildren) {
             // set clipping
-            ctx.save();
-            this._applyClip(borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
-            queue = new ZIndexQueue_1.ZIndexQueue();
+            this._clipNode(borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
+            this._addContext();
         }
         if (node.children) {
             var len = node.children.length;
             for (var i = 0; i < len; i++) {
                 var childNode = node.children[i];
                 if (childNode.style.position === POSITION_TYPE_ABSOLUTE) {
-                    queue.push({
+                    this._currentQueue.push({
                         node: childNode,
                         x: layoutLeft,
                         y: layoutTop,
                     });
                 }
                 else {
-                    this._renderNode(node.children[i], layoutLeft, layoutTop, queue);
+                    this._renderNode(childNode, layoutLeft, layoutTop);
                 }
             }
         }
         else if (node.content !== undefined) {
             var paddingLeft = _yogaNode.getComputedPadding(EDGE_LEFT), paddingTop = _yogaNode.getComputedPadding(EDGE_TOP), paddingRight = _yogaNode.getComputedPadding(EDGE_RIGHT), paddingBottom = _yogaNode.getComputedPadding(EDGE_BOTTOM);
-            this._renderText(ctx, style, layoutLeft + paddingLeft + borderLeft, layoutTop + paddingTop + borderTop, layoutWidth -
+            this._renderText(node, layoutLeft + paddingLeft + borderLeft, layoutTop + paddingTop + borderTop, layoutWidth -
                 paddingLeft -
                 paddingRight -
                 borderLeft -
@@ -413,83 +415,96 @@ var CanvasView = /** @class */ (function () {
                 paddingTop -
                 paddingBottom -
                 borderTop -
-                borderBottom, node);
+                borderBottom);
         }
         if (shouldClipChildren) {
             // render absolutes within clipping box
-            queue.render(this);
-            ctx.restore();
+            this._currentQueue.render(this);
+            this._removeContext();
         }
     };
-    CanvasView.prototype._renderShadow = function (ctx, shadowBlur, shadowOffsetX, shadowOffsetY, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight, style, hasBorder) {
+    CanvasView.prototype._renderShadow = function (ctx, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight, style, hasBorder) {
         // a bit tricky
         // as shadow should not be visible under element
         // setup clipping of the content
         ctx.save();
+        var shadowBlur = Math.round(style.shadowBlur) || 0, shadowOffsetX = Math.round(style.shadowOffsetX) || 0, shadowOffsetY = Math.round(style.shadowOffsetY) || 0;
         var borderIncrease = shadowBlur + Math.max(Math.abs(shadowOffsetX), Math.abs(shadowOffsetY));
         renderUtils_1.createBorderPath(ctx, borderIncrease, borderIncrease, borderIncrease, borderIncrease, borderIncrease + borderRadius, layoutLeft - borderIncrease, layoutTop - borderIncrease, layoutWidth + 2 * borderIncrease, layoutHeight + 2 * borderIncrease);
         ctx.clip();
         // init shadow
         ctx.shadowColor = style.shadowColor;
-        ctx.shadowBlur = style.shadowBlur;
-        ctx.shadowOffsetX = style.shadowOffsetX;
-        ctx.shadowOffsetY = style.shadowOffsetY;
+        ctx.shadowBlur = shadowBlur;
+        ctx.shadowOffsetX = shadowOffsetX;
+        ctx.shadowOffsetY = shadowOffsetY;
         ctx.beginPath();
         renderUtils_1.outerBorderPath(ctx, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight, true);
         ctx.fillStyle = hasBorder ? style.borderColor : style.background;
         ctx.fill();
         ctx.restore();
     };
-    CanvasView.prototype._renderText = function (ctx, style, textLeft, textTop, textWidth, textHeight, node) {
-        if (!style.color || !style.font || style.fontSize === undefined) {
+    CanvasView.prototype._renderText = function (node, left, top, width, height) {
+        var _yogaNode = node._yogaNode;
+        var paddingLeft = _yogaNode.getComputedPadding(EDGE_LEFT), paddingTop = _yogaNode.getComputedPadding(EDGE_TOP), paddingRight = _yogaNode.getComputedPadding(EDGE_RIGHT), paddingBottom = _yogaNode.getComputedPadding(EDGE_BOTTOM);
+        var style = node.style;
+        if (!style.color || !style._fullFont) {
             // unable to render
             return;
         }
-        ctx.fillStyle = style.color;
-        ctx.font = style.fontSize + "px " + style.font;
-        if (node.style.maxLines && node.style.maxLines > 1) {
-            renderUtils_1.renderMultilineText(ctx, node.content, textLeft, textTop, textWidth, textHeight, style.lineHeight
+        var ctx = this._ctx;
+        this._lastCachedContext.setFillStyle(style.color);
+        this._lastCachedContext.setFont(style._fullFont);
+        if (style.maxLines && style.maxLines > 1) {
+            renderUtils_1.renderMultilineText(ctx, this._lastCachedContext, node.content, left + paddingLeft, top + paddingTop, width - paddingLeft - paddingRight, height - paddingTop - paddingBottom, style.lineHeight
                 ? style.lineHeight
-                : style.fontSize * this._defaultLineHeightMultiplier, style.textAlign, style.verticalAlign, node.style.maxLines, style.textOverflow === "ellipsis" ? ellipsis : style.textOverflow);
+                : style.fontSize ? style.fontSize * this._defaultLineHeightMultiplier : 0, style.textAlign, style.verticalAlign, style.maxLines, style.textOverflow === "ellipsis" ? ellipsis : style.textOverflow);
         }
         else {
-            renderUtils_1.renderText(ctx, node.content, textLeft, textTop, textWidth, textHeight, style.textAlign, style.verticalAlign, style.textOverflow === "ellipsis" ? ellipsis : style.textOverflow, node);
+            renderUtils_1.renderText(ctx, this._lastCachedContext, node.content, left + paddingLeft, top + paddingTop, width - paddingLeft - paddingRight, height - paddingTop - paddingBottom, style.textAlign, style.verticalAlign, style.textOverflow === "ellipsis" ? ellipsis : style.textOverflow, node);
         }
     };
-    CanvasView.prototype._renderBackgroundImage = function (style, layoutLeft, layoutTop, layoutWidth, layoutHeight, borderLeft, borderTop, borderRight, borderBottom, borderRadius, ctx) {
+    CanvasView.prototype._renderBackgroundImage = function (style, layoutLeft, layoutTop, layoutWidth, layoutHeight, borderLeft, borderTop, borderRight, borderBottom) {
         var imgMaybe = defaultImageCache.get(style.backgroundImage);
-        if (!(imgMaybe instanceof Error)) {
-            if (imgMaybe instanceof HTMLImageElement) {
-                var backgroundImage = imgMaybe;
-                var targetRect = {
-                    left: layoutLeft + borderLeft,
-                    top: layoutTop + borderTop,
-                    width: layoutWidth -
-                        borderLeft -
-                        borderRight,
-                    height: layoutHeight -
-                        borderTop -
-                        borderBottom
-                };
-                var imgWidth = backgroundImage.width, imgHeight = backgroundImage.height;
-                var sourceRect = getImgBackgroundSourceRect(style, targetRect, imgWidth, imgHeight);
-                drawImageWithCache(ctx, backgroundImage, sourceRect, targetRect);
-            }
-            else {
-                // plan rendering
-                renderQueue_1.renderQueue.renderAfter(this, imgMaybe);
-            }
+        if (imgMaybe instanceof ImageCache_1.ImageCacheEntry) {
+            var cacheEntry = imgMaybe;
+            var targetRect = {
+                left: layoutLeft + borderLeft,
+                top: layoutTop + borderTop,
+                width: layoutWidth -
+                    borderLeft -
+                    borderRight,
+                height: layoutHeight -
+                    borderTop -
+                    borderBottom
+            };
+            var sourceRect = getImgBackgroundSourceRect(style, targetRect, cacheEntry.width, cacheEntry.height);
+            drawImageWithCache(this._ctx, cacheEntry.image, sourceRect, targetRect);
+        }
+        else if (!(imgMaybe instanceof Error)) {
+            // plan rendering
+            renderQueue_1.renderQueue.renderAfter(this, imgMaybe);
         }
     };
-    CanvasView.prototype._applyClip = function (borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight) {
+    CanvasView.prototype._clipNode = function (borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight) {
         var ctx = this._ctx;
         renderUtils_1.closedInnerBorderPath(ctx, borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
         ctx.clip();
     };
+    CanvasView.prototype._addContext = function () {
+        this.queues.push(this._currentQueue);
+        this._currentQueue = new ZIndexQueue_1.ZIndexQueue();
+        this._ctx.save();
+        this._lastCachedContext = this._lastCachedContext.createNestedContext();
+    };
+    CanvasView.prototype._removeContext = function () {
+        this._currentQueue = this.queues.pop();
+        this._ctx.restore();
+        this._lastCachedContext = this._lastCachedContext.getParentContext();
+    };
     CanvasView.prototype._renderBorder = function (strokeStyle, borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight) {
         var ctx = this._ctx;
         renderUtils_1.createBorderPath(ctx, borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
-        ctx.fillStyle = strokeStyle;
+        this._lastCachedContext.setFillStyle(strokeStyle);
         ctx.fill();
     };
     return CanvasView;

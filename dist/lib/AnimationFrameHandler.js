@@ -11,8 +11,7 @@ var AnimationFrameHandler = /** @class */ (function () {
         this._callbacks = [];
         this.avgCycleTimeSpent = 0;
         this.avgRenderCycleTimeSpent = 0;
-        this._process = function () {
-            var cycleStart = performance.now();
+        this._process = function (cycleStart) {
             _this._queued = false;
             _this._cycling = true;
             var callbacks = _this._callbacks;
@@ -23,7 +22,10 @@ var AnimationFrameHandler = /** @class */ (function () {
                 var cb = callbacks[i];
                 cb(cycleStart);
             }
-            var renderingStart = performance.now();
+            var renderingStart = 0;
+            if (_this.enableTimeReport) {
+                renderingStart = performance.now();
+            }
             // render all dirty views
             for (var j = 0; j < _this._views.length; j++) {
                 var canvasView = _this._views[j];
@@ -39,13 +41,16 @@ var AnimationFrameHandler = /** @class */ (function () {
             if (_this._queued) {
                 requestAnimationFrame(_this._process);
             }
-            var endTime = performance.now();
-            var timeSpent = endTime - cycleStart;
-            _this.avgCycleTimeSpent = _this.avgCycleTimeSpent * 0.995 + timeSpent * 0.005;
-            var renderingTimeSpent = endTime - renderingStart;
-            _this.avgRenderCycleTimeSpent = _this.avgRenderCycleTimeSpent * 0.995 + renderingTimeSpent * 0.005;
+            if (_this.enableTimeReport) {
+                var endTime = performance.now();
+                var timeSpent = endTime - cycleStart;
+                _this.avgCycleTimeSpent = _this.avgCycleTimeSpent * 0.995 + timeSpent * 0.005;
+                var renderingTimeSpent = endTime - renderingStart;
+                _this.avgRenderCycleTimeSpent = _this.avgRenderCycleTimeSpent * 0.995 + renderingTimeSpent * 0.005;
+            }
         };
         this.registry = registry;
+        this.enableTimeReport = enableTimeReport;
         if (enableTimeReport) {
             setInterval(function () {
                 console.log("CYCLE: full: " + _this.avgCycleTimeSpent.toFixed(1) + "ms, render: " + _this.avgRenderCycleTimeSpent.toFixed(1) + "ms (" + (_this.avgRenderCycleTimeSpent / _this.avgCycleTimeSpent * 100).toFixed(0) + "%)");

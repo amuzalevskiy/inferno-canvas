@@ -1,4 +1,5 @@
 import { BasketsCache } from "./BasketsCache";
+import { CachedCanvasContext } from "./CachedCanvasContext";
 
 export const TEXT_ALIGN_LEFT = 0;
 export const TEXT_ALIGN_CENTER = 1;
@@ -21,6 +22,7 @@ export type VERTICAL_ALIGN =
 const SPACES_REGEXP = /\s+/;
 export function renderText(
   ctx: CanvasRenderingContext2D,
+  cachedContext: CachedCanvasContext,
   text: string,
   left: number,
   top: number,
@@ -37,34 +39,34 @@ export function renderText(
     }
   }
 ) {
-  let x, y;
+  let x: number, y: number;
   switch (textAlign) {
     case TEXT_ALIGN_RIGHT:
       x = left + width;
-      ctx.textAlign = "right";
+      cachedContext.setTextAlign("right");
       break;
     case TEXT_ALIGN_CENTER:
       x = left + width / 2;
-      ctx.textAlign = "center";
+      cachedContext.setTextAlign("center");
       break;
     default:
       x = left;
-      ctx.textAlign = "left";
+      cachedContext.setTextAlign("left");
       break;
   }
 
   switch (verticalAlign) {
     case VERTICAL_ALIGN_MIDDLE:
       y = top + height / 2;
-      ctx.textBaseline = "middle";
+      cachedContext.setTextBaseline("middle");
       break;
     case VERTICAL_ALIGN_BOTTOM:
       y = top + height;
-      ctx.textBaseline = "bottom";
+      cachedContext.setTextBaseline("bottom");
       break;
     default:
       y = top;
-      ctx.textBaseline = "top";
+      cachedContext.setTextBaseline("top");
       break;
   }
   if (ellipsisChar) {
@@ -80,6 +82,7 @@ export function renderText(
 
         text = endWithEllipsis(
           ctx,
+          cachedContext,
           "",
           text.split(SPACES_REGEXP),
           0,
@@ -93,6 +96,7 @@ export function renderText(
     } else {
       text = endWithEllipsis(
         ctx,
+        cachedContext,
         "",
         text.split(SPACES_REGEXP),
         0,
@@ -104,14 +108,14 @@ export function renderText(
   ctx.fillText(text, x, y);
 }
 
-function endWithEllipsis(ctx: CanvasRenderingContext2D, text: string, words: string[], i: number, maxWidth: number, ellipsisChar: string) {
-  let textWidth = text.length === 0 ? 0 : measureText(ctx.font, text).width;
+function endWithEllipsis(ctx: CanvasRenderingContext2D, cachedContext: CachedCanvasContext, text: string, words: string[], i: number, maxWidth: number, ellipsisChar: string) {
+  let textWidth = text.length === 0 ? 0 : measureText(cachedContext.font, text).width;
 
   // add words while textWidth < maxWidth
   while (textWidth < maxWidth && i < words.length) {
     text += (text.length > 0 ? " " : "") + words[i];
     i++;
-    textWidth = measureText(ctx.font, text).width;
+    textWidth = measureText(cachedContext.font, text).width;
   }
 
   if (textWidth > maxWidth) {
@@ -123,7 +127,7 @@ function endWithEllipsis(ctx: CanvasRenderingContext2D, text: string, words: str
       if (text === '') {
         return ellipsisChar;
       }
-      textWidth = measureText(ctx.font, text + ellipsisChar).width;
+      textWidth = measureText(cachedContext.font, text + ellipsisChar).width;
     }
     return text + ellipsisChar;
   }
@@ -202,6 +206,7 @@ export function countLines(
 
 export function renderMultilineText(
   ctx: CanvasRenderingContext2D,
+  cachedContext: CachedCanvasContext,
   text: string,
   left: number,
   top: number,
@@ -224,7 +229,7 @@ export function renderMultilineText(
       if (lines.length >= maxLines) {
         if (ellipsisChar) {
           lines.push(
-            endWithEllipsis(ctx, lines.pop()!, words, i, width, ellipsisChar)
+            endWithEllipsis(ctx, cachedContext, lines.pop()!, words, i, width, ellipsisChar)
           );
         }
         currentLine = "";
@@ -257,6 +262,7 @@ export function renderMultilineText(
   for (i = 0; i < lines.length; i++) {
     renderText(
       ctx,
+      cachedContext,
       lines[i],
       left,
       startX,

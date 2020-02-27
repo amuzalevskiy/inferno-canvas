@@ -13,6 +13,7 @@ export class CanvasDocument {
   constructor(animationFrameHandler: AnimationFrameHandler) {
     this.animationFrameHandler = animationFrameHandler;
   }
+  
   markDirty() {
     if (!this.dirty) {
       this.dirty = true;

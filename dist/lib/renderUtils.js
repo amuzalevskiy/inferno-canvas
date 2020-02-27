@@ -8,34 +8,34 @@ exports.VERTICAL_ALIGN_TOP = 0;
 exports.VERTICAL_ALIGN_MIDDLE = 1;
 exports.VERTICAL_ALIGN_BOTTOM = 2;
 var SPACES_REGEXP = /\s+/;
-function renderText(ctx, text, left, top, width, height, textAlign, verticalAlign, ellipsisChar, cacheNode) {
+function renderText(ctx, cachedContext, text, left, top, width, height, textAlign, verticalAlign, ellipsisChar, cacheNode) {
     var x, y;
     switch (textAlign) {
         case exports.TEXT_ALIGN_RIGHT:
             x = left + width;
-            ctx.textAlign = "right";
+            cachedContext.setTextAlign("right");
             break;
         case exports.TEXT_ALIGN_CENTER:
             x = left + width / 2;
-            ctx.textAlign = "center";
+            cachedContext.setTextAlign("center");
             break;
         default:
             x = left;
-            ctx.textAlign = "left";
+            cachedContext.setTextAlign("left");
             break;
     }
     switch (verticalAlign) {
         case exports.VERTICAL_ALIGN_MIDDLE:
             y = top + height / 2;
-            ctx.textBaseline = "middle";
+            cachedContext.setTextBaseline("middle");
             break;
         case exports.VERTICAL_ALIGN_BOTTOM:
             y = top + height;
-            ctx.textBaseline = "bottom";
+            cachedContext.setTextBaseline("bottom");
             break;
         default:
             y = top;
-            ctx.textBaseline = "top";
+            cachedContext.setTextBaseline("top");
             break;
     }
     if (ellipsisChar) {
@@ -49,25 +49,25 @@ function renderText(ctx, text, left, top, width, height, textAlign, verticalAlig
                     text: text,
                     value: ""
                 };
-                text = endWithEllipsis(ctx, "", text.split(SPACES_REGEXP), 0, width, ellipsisChar);
+                text = endWithEllipsis(ctx, cachedContext, "", text.split(SPACES_REGEXP), 0, width, ellipsisChar);
                 cache.value = text;
                 cacheNode.cache = cache;
             }
         }
         else {
-            text = endWithEllipsis(ctx, "", text.split(SPACES_REGEXP), 0, width, ellipsisChar);
+            text = endWithEllipsis(ctx, cachedContext, "", text.split(SPACES_REGEXP), 0, width, ellipsisChar);
         }
     }
     ctx.fillText(text, x, y);
 }
 exports.renderText = renderText;
-function endWithEllipsis(ctx, text, words, i, maxWidth, ellipsisChar) {
-    var textWidth = text.length === 0 ? 0 : measureText(ctx.font, text).width;
+function endWithEllipsis(ctx, cachedContext, text, words, i, maxWidth, ellipsisChar) {
+    var textWidth = text.length === 0 ? 0 : measureText(cachedContext.font, text).width;
     // add words while textWidth < maxWidth
     while (textWidth < maxWidth && i < words.length) {
         text += (text.length > 0 ? " " : "") + words[i];
         i++;
-        textWidth = measureText(ctx.font, text).width;
+        textWidth = measureText(cachedContext.font, text).width;
     }
     if (textWidth > maxWidth) {
         while (textWidth > maxWidth) {
@@ -78,7 +78,7 @@ function endWithEllipsis(ctx, text, words, i, maxWidth, ellipsisChar) {
             if (text === '') {
                 return ellipsisChar;
             }
-            textWidth = measureText(ctx.font, text + ellipsisChar).width;
+            textWidth = measureText(cachedContext.font, text + ellipsisChar).width;
         }
         return text + ellipsisChar;
     }
@@ -145,7 +145,7 @@ function countLines(text, font, maxWidth, maxLines) {
     return linesCount;
 }
 exports.countLines = countLines;
-function renderMultilineText(ctx, text, left, top, width, height, lineHeight, textAlign, verticalAlign, maxLines, ellipsisChar) {
+function renderMultilineText(ctx, cachedContext, text, left, top, width, height, lineHeight, textAlign, verticalAlign, maxLines, ellipsisChar) {
     if (maxLines === void 0) { maxLines = Infinity; }
     var words = text.split(SPACES_REGEXP);
     var lines = [];
@@ -157,7 +157,7 @@ function renderMultilineText(ctx, text, left, top, width, height, lineHeight, te
             lines.push(currentLine);
             if (lines.length >= maxLines) {
                 if (ellipsisChar) {
-                    lines.push(endWithEllipsis(ctx, lines.pop(), words, i, width, ellipsisChar));
+                    lines.push(endWithEllipsis(ctx, cachedContext, lines.pop(), words, i, width, ellipsisChar));
                 }
                 currentLine = "";
                 break;
@@ -186,7 +186,7 @@ function renderMultilineText(ctx, text, left, top, width, height, lineHeight, te
             break;
     }
     for (i = 0; i < lines.length; i++) {
-        renderText(ctx, lines[i], left, startX, width, lineHeight, textAlign, verticalAlign);
+        renderText(ctx, cachedContext, lines[i], left, startX, width, lineHeight, textAlign, verticalAlign);
         startX += lineHeight;
     }
 }

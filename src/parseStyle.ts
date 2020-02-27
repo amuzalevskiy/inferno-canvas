@@ -23,8 +23,10 @@ import YogaLayout from 'yoga-layout';
 const {
   ALIGN_STRETCH,
   ALIGN_AUTO
-} = YogaLayout; 
-export function parseTextAlign(value: string): TEXT_ALIGN {
+} = YogaLayout;
+
+export type TEXT_ALIGN_STRING = "left" | "center" | "right";
+export function parseTextAlign(value: TEXT_ALIGN_STRING): TEXT_ALIGN {
   switch (value) {
     case "left":
       return TEXT_ALIGN_LEFT;
@@ -35,7 +37,9 @@ export function parseTextAlign(value: string): TEXT_ALIGN {
   }
   return TEXT_ALIGN_LEFT;
 }
-export function parseVerticalAlign(value: string): VERTICAL_ALIGN {
+
+export type VERTICAL_ALIGN_STRING = "top" | "bottom" | "middle";
+export function parseVerticalAlign(value: VERTICAL_ALIGN_STRING): VERTICAL_ALIGN {
   switch (value) {
     case "top":
       return VERTICAL_ALIGN_TOP;

@@ -21,7 +21,7 @@ import {
   outerBorderPath
 } from "./renderUtils";
 
-import { ImageCache } from "./ImageCache";
+import { ImageCache, ImageCacheEntry } from "./ImageCache";
 import { renderQueue } from "./renderQueue";
 import {
   ILayoutNode,
@@ -33,6 +33,7 @@ import { LayoutEvent, bubbleEvent, mapEventType } from "./LayoutEvent";
 import { CanvasElement } from "./CanvasElement";
 import { TextureAtlas } from "./TextureAtlas";
 import { CanvasDocument } from "./CanvasDocument";
+import { CachedCanvasContext } from "./CachedCanvasContext";
 
 const ellipsis = String.fromCharCode(0x2026);
 
@@ -171,15 +172,9 @@ export class CanvasView {
     mouseup: false
   };
 
-  private _contexts: {
-    font: string;
-    fill: string;
-  }[] = [{
-    font: "",
-    fill: "",
-  }];
-
-  private _lastContext = this._contexts[0];
+  public _currentQueue: ZIndexQueue = new ZIndexQueue();
+  private queues: ZIndexQueue[] = [];
+  private _lastCachedContext: CachedCanvasContext;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -195,6 +190,7 @@ export class CanvasView {
     this._spec = spec;
     this._processEvent = this._processEvent.bind(this);
     this._ctx = canvas.getContext("2d")!;
+    this._lastCachedContext = new CachedCanvasContext(this._ctx, this._ctx);
     this._defaultLineHeightMultiplier = defaultLineHeightMultiplier;
     this.x = left;
     this.y = top;
@@ -445,31 +441,33 @@ export class CanvasView {
 
   public render() {
     this._layout();
-    var queue = new ZIndexQueue();
     let ctx = this._ctx;
     ctx.clearRect(this.x, this.y, this._width, this._height);
     // save before clipping
     ctx.save();
+    this._addContext();
     // next line gives faster rendering for unknown reasons
     ctx.beginPath();
     ctx.rect(this.x, this.y, this._width, this._height);
     ctx.clip();
-    this._renderNode(this._spec, this.x, this.y, queue);
+    this._renderNode(this._spec, this.x, this.y);
     // render absolutes within clipping rect
-    queue.render(this);
+    this._currentQueue.render(this);
     ctx.restore();
+    this._removeContext();
   }
 
   public _renderNode(
     node: ILayoutNode,
     x: number,
-    y: number,
-    queue: ZIndexQueue
+    y: number
   ) {
     const ctx = this._ctx;
     const _yogaNode = node._yogaNode;
     const style = node.style;
-    const shouldClipChildren = style.overflow === OVERFLOW_HIDDEN || style.overflow === OVERFLOW_SCROLL;
+    const overflow = style.overflow;
+    const shouldClipChildren = !!overflow;
+    // const shouldClipChildren = overflow === OVERFLOW_HIDDEN || overflow === OVERFLOW_SCROLL;
     const layoutLeft = _yogaNode.getComputedLeft() + x,
       layoutTop = _yogaNode.getComputedTop() + y,
       layoutWidth = _yogaNode.getComputedWidth(),
@@ -487,10 +485,7 @@ export class CanvasView {
         borderRight > 0);
 
     if (style.background) {
-      if (style.background !== this._lastContext.fill) {
-        this._lastContext.fill = style.background;
-        ctx.fillStyle = style.background;
-      }
+      this._lastCachedContext.setFillStyle(style.background);
       if (borderRadius > 0) {
         if (hasBorder) {
           // the only found way to fix rendering artifacts with rounded borders
@@ -539,14 +534,8 @@ export class CanvasView {
 
     if (shouldClipChildren) {
       // set clipping
-      ctx.save();
-      this._lastContext = {
-        font: this._lastContext.font,
-        fill: this._lastContext.fill,
-      };
-      this._contexts.push(this._lastContext);
-      this._applyClip(borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
-      queue = new ZIndexQueue();
+      this._clipNode(borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
+      this._addContext();
     }
 
     if (node.children) {
@@ -554,7 +543,7 @@ export class CanvasView {
       for (var i = 0; i < len; i++) {
         var childNode = node.children[i];
         if (childNode.style.position === POSITION_TYPE_ABSOLUTE) {
-          queue.push({
+          this._currentQueue.push({
             node: childNode,
             x: layoutLeft,
             y: layoutTop,
@@ -563,8 +552,7 @@ export class CanvasView {
           this._renderNode(
             childNode,
             layoutLeft,
-            layoutTop,
-            queue
+            layoutTop
           );
         }
       }
@@ -591,9 +579,8 @@ export class CanvasView {
 
     if (shouldClipChildren) {
       // render absolutes within clipping box
-      queue.render(this);
-      ctx.restore();
-      this._lastContext = this._contexts.pop()!;
+      this._currentQueue.render(this);
+      this._removeContext();
     }
   }
 
@@ -650,25 +637,18 @@ export class CanvasView {
       paddingRight = _yogaNode.getComputedPadding(EDGE_RIGHT),
       paddingBottom = _yogaNode.getComputedPadding(EDGE_BOTTOM);
     const style = node.style;
-    if (!style.color || !style.font || style.fontSize === undefined) {
+    if (!style.color || !(style as any)._fullFont) {
       // unable to render
       return;
     }
     const ctx = this._ctx;
-    if (style.color !== this._lastContext.fill) {
-      this._lastContext.fill = style.color;
-      ctx.fillStyle = style.color;
-    }
-    
-    const font = style.fontSize + "px " + style.font;
-    if (font !== this._lastContext.font) {
-      this._lastContext.font = font;
-      ctx.font = font;
-    }
+    this._lastCachedContext.setFillStyle(style.color);
+    this._lastCachedContext.setFont((style as any)._fullFont);
 
     if (style.maxLines && style.maxLines > 1) {
       renderMultilineText(
         ctx,
+        this._lastCachedContext,
         node.content!,
         left + paddingLeft,
         top + paddingTop,
@@ -676,7 +656,7 @@ export class CanvasView {
         height - paddingTop - paddingBottom,
         style.lineHeight
           ? style.lineHeight
-          : style.fontSize * this._defaultLineHeightMultiplier,
+          : style.fontSize ? style.fontSize * this._defaultLineHeightMultiplier : 0,
         style.textAlign,
         style.verticalAlign,
         style.maxLines,
@@ -685,7 +665,8 @@ export class CanvasView {
     } else {
       renderText(
         ctx,
-        node.content!,    
+        this._lastCachedContext,
+        node.content!,
         left + paddingLeft,
         top + paddingTop,
         width - paddingLeft - paddingRight,
@@ -704,8 +685,8 @@ export class CanvasView {
     borderLeft: number, borderTop: number, borderRight: number, borderBottom: number
   ) {
     var imgMaybe = defaultImageCache.get(style.backgroundImage!);
-    if (imgMaybe instanceof HTMLImageElement) {
-      var backgroundImage = imgMaybe as any as HTMLImageElement;
+    if (imgMaybe instanceof ImageCacheEntry) {
+      var cacheEntry = imgMaybe;
       let targetRect: IRect = {
         left: layoutLeft + borderLeft,
         top: layoutTop + borderTop,
@@ -718,30 +699,38 @@ export class CanvasView {
           borderTop -
           borderBottom
       };
-      var imgWidth = backgroundImage.width,
-        imgHeight = backgroundImage.height;
 
-      let sourceRect: IRect = getImgBackgroundSourceRect(style, targetRect, imgWidth, imgHeight);
-      drawImageWithCache(this._ctx, backgroundImage, sourceRect, targetRect);
+      let sourceRect: IRect = getImgBackgroundSourceRect(style, targetRect, cacheEntry.width, cacheEntry.height);
+      drawImageWithCache(this._ctx, cacheEntry.image, sourceRect, targetRect);
     } else if (!(imgMaybe instanceof Error)) {
       // plan rendering
       renderQueue.renderAfter(this, imgMaybe);
     }
   }
 
-  private _applyClip(borderLeft: number, borderTop: number, borderRight: number, borderBottom: number, borderRadius: number, layoutLeft: number, layoutTop: number, layoutWidth: number, layoutHeight: number) {
+  private _clipNode(borderLeft: number, borderTop: number, borderRight: number, borderBottom: number, borderRadius: number, layoutLeft: number, layoutTop: number, layoutWidth: number, layoutHeight: number) {
     var ctx = this._ctx;
     closedInnerBorderPath(ctx, borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
     ctx.clip();
   }
 
+  public _addContext() {
+    this.queues.push(this._currentQueue);
+    this._currentQueue = new ZIndexQueue();
+    this._ctx.save();
+    this._lastCachedContext = this._lastCachedContext.createNestedContext();
+  }
+
+  public _removeContext() {
+    this._currentQueue = this.queues.pop()!;
+    this._ctx.restore();
+    this._lastCachedContext = this._lastCachedContext.getParentContext();
+  }
+
   private _renderBorder(strokeStyle: string, borderLeft: number, borderTop: number, borderRight: number, borderBottom: number, borderRadius: number, layoutLeft: number, layoutTop: number, layoutWidth: number, layoutHeight: number) {
     var ctx = this._ctx;
     createBorderPath(ctx, borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
-    if (strokeStyle !== this._lastContext.fill) {
-      this._lastContext.fill = strokeStyle;
-      ctx.fillStyle = strokeStyle;
-    }
+    this._lastCachedContext.setFillStyle(strokeStyle);
     ctx.fill();
   }
 }

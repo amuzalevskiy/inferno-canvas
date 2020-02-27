@@ -1,12 +1,5 @@
 import YogaLayout, {
-    YogaNode,
-    YogaFlexDirection,
-    YogaJustifyContent,
-    YogaAlign,
-    YogaPositionType,
-    YogaFlexWrap,
-    YogaOverflow,
-    YogaDisplay,
+    YogaNode, YogaFlexDirection, YogaJustifyContent, YogaAlign, YogaPositionType, YogaFlexWrap, YogaOverflow, YogaDisplay
 } from "yoga-layout";
 
 const {
@@ -25,7 +18,6 @@ const {
 import {IStyleProps, TEXT_ALIGN, VERTICAL_ALIGN, ILayoutNode} from "./node";
 import { measureText, countLines } from "./renderUtils";
 import { CanvasElementRegistry } from "./CanvasElementRegistry";
-
 
 const YGMeasureModeUndefined = 0,
     YGMeasureModeExactly = 1,
@@ -94,6 +86,7 @@ class Style implements IStyleProps {
     backgroundImage?: string;
     backgroundPositionX?: number;
     backgroundPositionY?: number;
+    
     flexDirection?: YogaFlexDirection;
     justifyContent?: YogaJustifyContent;
     alignContent?: YogaAlign;
@@ -106,6 +99,9 @@ class Style implements IStyleProps {
     textAlign?: TEXT_ALIGN;
     verticalAlign?: VERTICAL_ALIGN;
     
+    // caches
+    _fullFont?: string;
+
     constructor(el: CanvasElement) {
         this.el = el;
     }
@@ -114,15 +110,17 @@ class Style implements IStyleProps {
     isTextNode: boolean = false;
 
     removeProperty(name: string) {
-        if (this.el._doc) {
+        const doc = this.el._doc;
+        if (doc && !doc.dirty) {
             this.el._doc.markDirty();
         }
 
-        this.setProperty(name, NaN);
+        this.setProperty(name, undefined);
     }
 
     setProperty(name: string, value: any) {
-        if (this.el._doc) {
+        const doc = this.el._doc;
+        if (doc && !doc.dirty) {
             this.el._doc.markDirty();
         }
 
@@ -131,6 +129,10 @@ class Style implements IStyleProps {
         switch(name) {
             case "font":
             case "fontSize":
+                if (this.fontSize && this.font) {
+                    this._fullFont = this.fontSize + "px " + this.font;
+                }
+            // tslint:disable-next-line:no-switch-case-fall-through
             case "maxLines":
                 if (this.isMeasureFunctionSet) {
                     // invalidate layout
@@ -140,44 +142,44 @@ class Style implements IStyleProps {
                 }
                 break;
             case "alignContent":
-                node.setAlignContent(value);
+                node.setAlignContent(value !== undefined ? value : NaN);
                 break;
             case "alignItems":
-                node.setAlignItems(value);
+                node.setAlignItems(value !== undefined ? value : NaN);
                 break;
             case "alignSelf":
-                node.setAlignSelf(value);
+                node.setAlignSelf(value !== undefined ? value : NaN);
                 break;
             case "aspectRatio":
                 node.setAspectRatio(value !== undefined ? value : NaN);
                 break;
             case "display":
-                node.setDisplay(value);
+                node.setDisplay(value !== undefined ? value : NaN);
                 break;
             case "flex":
-                node.setFlex(value);
+                node.setFlex(value !== undefined ? value : NaN);
                 break;
             case "flexBasis":
-                node.setFlexBasis(value);
+                node.setFlexBasis(value !== undefined ? value : NaN);
                 break;
             case "flexDirection":
-                node.setFlexDirection(value);
+                node.setFlexDirection(value !== undefined ? value : NaN);
                 break;
             case "flexGrow":
-                node.setFlexGrow(value);
+                node.setFlexGrow(value !== undefined ? value : NaN);
                 break;
             case "flexShrink":
-                node.setFlexShrink(value);
+                node.setFlexShrink(value !== undefined ? value : NaN);
                 break;
             case "flexWrap":
-                node.setFlexWrap(value);
+                node.setFlexWrap(value !== undefined ? value : NaN);
                 break;
             case "height":
-                node.setHeight(value);
+                node.setHeight(value !== undefined ? value : NaN);
                 this.validateMeasureFun();
                 break;
             case "justifyContent":
-                node.setJustifyContent(value);
+                node.setJustifyContent(value !== undefined ? value : NaN);
                 break;
             case "maxHeight":
                 node.setMaxHeight(value !== undefined ? value : NaN);
@@ -192,13 +194,13 @@ class Style implements IStyleProps {
                 node.setMinWidth(value !== undefined ? value : NaN);
                 break;
             case "overflow":
-                node.setOverflow(value);
+                node.setOverflow(value !== undefined ? value : NaN);
                 break;
             case "position":
-                node.setPositionType(value);
+                node.setPositionType(value !== undefined ? value : NaN);
                 break;
             case "width":
-                node.setWidth(value);
+                node.setWidth(value !== undefined ? value : NaN);
                 this.validateMeasureFun();
                 break;
             case "top":
@@ -431,7 +433,7 @@ export class CanvasElement implements ILayoutNode {
     }
 
     setAttribute(name: string, value: any) {
-        if (this._doc) {
+        if (this._doc && !this._doc.dirty) {
             this._doc.markDirty();
         }
 
@@ -449,7 +451,7 @@ export class CanvasElement implements ILayoutNode {
     }
 
     removeAttribute(name: string) {
-        if (this._doc) {
+        if (this._doc && !this._doc.dirty) {
             this._doc.markDirty();
         }
 
@@ -468,7 +470,7 @@ export class CanvasElement implements ILayoutNode {
     }
 
     appendChild(child: CanvasElement) {
-        if (this._doc) {
+        if (this._doc && !this._doc.dirty) {
             this._doc.markDirty();
         }
 
@@ -486,7 +488,7 @@ export class CanvasElement implements ILayoutNode {
     
 
     insertBefore(newNode: CanvasElement, nextNode: CanvasElement) {
-        if (this._doc) {
+        if (this._doc && !this._doc.dirty) {
             this._doc.markDirty();
         }
 
@@ -509,7 +511,7 @@ export class CanvasElement implements ILayoutNode {
     }
 
     replaceChild(newDom: CanvasElement, lastDom: CanvasElement) {
-        if (this._doc) {
+        if (this._doc && !this._doc.dirty) {
             this._doc.markDirty();
         }
 
@@ -529,7 +531,7 @@ export class CanvasElement implements ILayoutNode {
     }
 
     removeChild(childNode: CanvasElement) {
-        if (this._doc) {
+        if (this._doc && !this._doc.dirty) {
             this._doc.markDirty();
         }
 

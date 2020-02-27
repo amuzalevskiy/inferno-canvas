@@ -31,7 +31,6 @@ export class ZIndexQueue {
         if (this.empty) {
             return;
         }
-        let queue;
         let zIndexes = Array.from(this.queue.keys());
         zIndexes.sort();
         for (let i = 0; i < zIndexes.length; i += 1) {
@@ -40,9 +39,10 @@ export class ZIndexQueue {
             for (let j = 0; j < renderSpecs.length; j += 1) {
                 const spec = renderSpecs[j];
                 // all inner items has its own zIndex Queue
-                queue = new ZIndexQueue();
-                view._renderNode(spec.node, spec.x, spec.y, queue);
-                queue.render(view);
+                view._addContext();
+                view._renderNode(spec.node, spec.x, spec.y);
+                view._currentQueue.render(view);
+                view._removeContext();
             }
         }
     }
