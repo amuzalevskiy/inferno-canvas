@@ -1,5 +1,5 @@
 import YogaLayout, {
-    YogaNode, YogaFlexDirection, YogaJustifyContent, YogaAlign, YogaPositionType, YogaFlexWrap, YogaOverflow, YogaDisplay
+    YogaNode, YogaFlexDirection, YogaJustifyContent, YogaAlign, YogaPositionType, YogaFlexWrap, YogaOverflow, YogaDisplay, JUSTIFY_FLEX_START, ALIGN_STRETCH, ALIGN_AUTO, FLEX_DIRECTION_COLUMN, POSITION_TYPE_RELATIVE, WRAP_NO_WRAP, OVERFLOW_VISIBLE, DISPLAY_FLEX
 } from "yoga-layout";
 
 const {
@@ -16,13 +16,54 @@ const {
 } = YogaLayout;
 
 import {IStyleProps, TEXT_ALIGN, VERTICAL_ALIGN, ILayoutNode} from "./node";
-import { measureText, countLines } from "./renderUtils";
+import { measureText, countLines, TEXT_ALIGN_LEFT, VERTICAL_ALIGN_TOP } from "./renderUtils";
 import { CanvasElementRegistry } from "./CanvasElementRegistry";
 
 const YGMeasureModeUndefined = 0,
     YGMeasureModeExactly = 1,
     YGMeasureModeAtMost = 2;
 
+const defaultYogaStyles: IStyleProps = {
+    width: "auto",
+    height: "auto",
+    justifyContent: JUSTIFY_FLEX_START,
+    alignItems: ALIGN_STRETCH,
+    alignSelf: ALIGN_AUTO,
+    alignContent: ALIGN_STRETCH,
+    flexDirection: FLEX_DIRECTION_COLUMN,
+    padding: 0,
+    paddingTop: 0,
+    paddingLeft: 0,
+    paddingBottom: 0,
+    paddingRight: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    paddingStart: 0,
+    paddingEnd: 0,
+    margin: 0,
+    marginTop: 0,
+    marginLeft: 0,
+    marginBottom: 0,
+    marginRight: 0,
+    marginStart: 0,
+    marginEnd: 0,
+    marginVertical: 0,
+    marginHorizontal: 0,
+    border: 0,
+    borderStart: 0,
+    borderEnd: 0,
+    borderTop: 0,
+    borderLeft: 0,
+    borderBottom: 0,
+    borderRight: 0,
+    position: POSITION_TYPE_RELATIVE,
+    flexWrap: WRAP_NO_WRAP,
+    flexBasis: "auto",
+    flexGrow: 0,
+    flexShrink: 1,
+    overflow: OVERFLOW_VISIBLE,
+    display: DISPLAY_FLEX,
+};
 class Style implements IStyleProps {
     el: CanvasElement;
 
@@ -126,7 +167,10 @@ class Style implements IStyleProps {
 
         (this as any)[name] = value;
         var node = this.el._yogaNode;
-        switch(name) {
+        if (value === undefined) {
+            value = (defaultYogaStyles as any)[name];
+        }
+        switch (name) {
             case "font":
             case "fontSize":
                 if (this.fontSize && this.font) {
@@ -142,159 +186,159 @@ class Style implements IStyleProps {
                 }
                 break;
             case "alignContent":
-                node.setAlignContent(value !== undefined ? value : NaN);
+                node.setAlignContent(value);
                 break;
             case "alignItems":
-                node.setAlignItems(value !== undefined ? value : NaN);
+                node.setAlignItems(value);
                 break;
             case "alignSelf":
-                node.setAlignSelf(value !== undefined ? value : NaN);
+                node.setAlignSelf(value);
                 break;
             case "aspectRatio":
-                node.setAspectRatio(value !== undefined ? value : NaN);
+                node.setAspectRatio(value);
                 break;
             case "display":
-                node.setDisplay(value !== undefined ? value : NaN);
+                node.setDisplay(value);
                 break;
             case "flex":
-                node.setFlex(value !== undefined ? value : NaN);
+                node.setFlex(value);
                 break;
             case "flexBasis":
-                node.setFlexBasis(value !== undefined ? value : NaN);
+                node.setFlexBasis(value);
                 break;
             case "flexDirection":
-                node.setFlexDirection(value !== undefined ? value : NaN);
+                node.setFlexDirection(value);
                 break;
             case "flexGrow":
-                node.setFlexGrow(value !== undefined ? value : NaN);
+                node.setFlexGrow(value);
                 break;
             case "flexShrink":
-                node.setFlexShrink(value !== undefined ? value : NaN);
+                node.setFlexShrink(value);
                 break;
             case "flexWrap":
-                node.setFlexWrap(value !== undefined ? value : NaN);
+                node.setFlexWrap(value);
                 break;
             case "height":
-                node.setHeight(value !== undefined ? value : NaN);
+                node.setHeight(value);
                 this.validateMeasureFun();
                 break;
             case "justifyContent":
-                node.setJustifyContent(value !== undefined ? value : NaN);
+                node.setJustifyContent(value);
                 break;
             case "maxHeight":
-                node.setMaxHeight(value !== undefined ? value : NaN);
+                node.setMaxHeight(value);
                 break;
             case "maxWidth":
-                node.setMaxWidth(value !== undefined ? value : NaN);
+                node.setMaxWidth(value);
                 break;
             case "minHeight":
-                node.setMinHeight(value !== undefined ? value : NaN);
+                node.setMinHeight(value);
                 break;
             case "minWidth":
-                node.setMinWidth(value !== undefined ? value : NaN);
+                node.setMinWidth(value);
                 break;
             case "overflow":
-                node.setOverflow(value !== undefined ? value : NaN);
+                node.setOverflow(value);
                 break;
             case "position":
-                node.setPositionType(value !== undefined ? value : NaN);
+                node.setPositionType(value);
                 break;
             case "width":
-                node.setWidth(value !== undefined ? value : NaN);
+                node.setWidth(value);
                 this.validateMeasureFun();
                 break;
             case "top":
-                node.setPosition(EDGE_TOP, value !== undefined ? value : NaN);
+                node.setPosition(EDGE_TOP, value);
                 break;
             case "right":
-                node.setPosition(EDGE_RIGHT, value !== undefined ? value : NaN);
+                node.setPosition(EDGE_RIGHT, value);
                 break;
             case "bottom":
-                node.setPosition(EDGE_BOTTOM, value !== undefined ? value : NaN);
+                node.setPosition(EDGE_BOTTOM, value);
                 break;
             case "left":
-                node.setPosition(EDGE_LEFT, value !== undefined ? value : NaN);
+                node.setPosition(EDGE_LEFT, value);
                 break;
 
             case "margin":
-                node.setMargin(EDGE_ALL, value !== undefined ? value : NaN);
+                node.setMargin(EDGE_ALL, value);
                 break;
             case "marginTop":
-                node.setMargin(EDGE_TOP, value !== undefined ? value : NaN);
+                node.setMargin(EDGE_TOP, value);
                 break;
             case "marginLeft":
-                node.setMargin(EDGE_LEFT, value !== undefined ? value : NaN);
+                node.setMargin(EDGE_LEFT, value);
                 break;
             case "marginBottom":
-                node.setMargin(EDGE_BOTTOM, value !== undefined ? value : NaN);
+                node.setMargin(EDGE_BOTTOM, value);
                 break;
             case "marginRight":
-                node.setMargin(EDGE_RIGHT, value !== undefined ? value : NaN);
+                node.setMargin(EDGE_RIGHT, value);
                 break;
             case "marginVertical":
-                node.setMargin(EDGE_VERTICAL, value !== undefined ? value : NaN);
+                node.setMargin(EDGE_VERTICAL, value);
                 break;
             case "marginHorizontal":
-                node.setMargin(EDGE_HORIZONTAL, value !== undefined ? value : NaN);
+                node.setMargin(EDGE_HORIZONTAL, value);
                 break;
 
             case "padding":
-                node.setPadding(EDGE_ALL, value !== undefined ? value : NaN);
+                node.setPadding(EDGE_ALL, value);
                 break;
             case "paddingTop":
-                node.setPadding(EDGE_TOP, value !== undefined ? value : NaN);
+                node.setPadding(EDGE_TOP, value);
                 break;
             case "paddingLeft":
-                node.setPadding(EDGE_LEFT, value !== undefined ? value : NaN);
+                node.setPadding(EDGE_LEFT, value);
                 break;
             case "paddingBottom":
-                node.setPadding(EDGE_BOTTOM, value !== undefined ? value : NaN);
+                node.setPadding(EDGE_BOTTOM, value);
                 break;
             case "paddingRight":
-                node.setPadding(EDGE_RIGHT, value !== undefined ? value : NaN);
+                node.setPadding(EDGE_RIGHT, value);
                 break;
             case "paddingVertical":
-                node.setPadding(EDGE_VERTICAL, value !== undefined ? value : NaN);
+                node.setPadding(EDGE_VERTICAL, value);
                 break;
             case "paddingHorizontal":
-                node.setPadding(EDGE_HORIZONTAL, value !== undefined ? value : NaN);
+                node.setPadding(EDGE_HORIZONTAL, value);
                 break;
 
             case "border":
-                node.setBorder(EDGE_ALL, value !== undefined ? value : NaN);
+                node.setBorder(EDGE_ALL, value);
                 break;
             case "borderTop":
-                node.setBorder(EDGE_TOP, value !== undefined ? value : NaN);
+                node.setBorder(EDGE_TOP, value);
                 break;
             case "borderLeft":
-                node.setBorder(EDGE_LEFT, value !== undefined ? value : NaN);
+                node.setBorder(EDGE_LEFT, value);
                 break;
             case "borderBottom":
-                node.setBorder(EDGE_BOTTOM, value !== undefined ? value : NaN);
+                node.setBorder(EDGE_BOTTOM, value);
                 break;
             case "borderRight":
-                node.setBorder(EDGE_RIGHT, value !== undefined ? value : NaN);
+                node.setBorder(EDGE_RIGHT, value);
                 break;
 
 
             case "borderStart":
-                node.setBorder(EDGE_START, value !== undefined ? value : NaN);
+                node.setBorder(EDGE_START, value);
                 break;
             case "borderEnd":
-                node.setBorder(EDGE_END, value !== undefined ? value : NaN);
+                node.setBorder(EDGE_END, value);
                 break;
             case "paddingStart":
-                node.setPadding(EDGE_START, value !== undefined ? value : NaN);
+                node.setPadding(EDGE_START, value);
                 break;
             case "paddingEnd":
-                node.setPadding(EDGE_END, value !== undefined ? value : NaN);
+                node.setPadding(EDGE_END, value);
                 break;
             
             case "marginStart":
-                node.setMargin(EDGE_START, value !== undefined ? value : NaN);
+                node.setMargin(EDGE_START, value);
                 break;
             case "marginEnd":
-                node.setMargin(EDGE_END, value !== undefined ? value : NaN);
+                node.setMargin(EDGE_END, value);
                 break;
         }
     }
