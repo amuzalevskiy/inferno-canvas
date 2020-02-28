@@ -12625,8 +12625,49 @@
         }
     }
 
-    var Node$1 = entryBrowser.Node, EDGE_TOP = entryBrowser.EDGE_TOP, EDGE_RIGHT = entryBrowser.EDGE_RIGHT, EDGE_BOTTOM = entryBrowser.EDGE_BOTTOM, EDGE_ALL = entryBrowser.EDGE_ALL, EDGE_LEFT = entryBrowser.EDGE_LEFT, EDGE_START = entryBrowser.EDGE_START, EDGE_END = entryBrowser.EDGE_END, EDGE_VERTICAL = entryBrowser.EDGE_VERTICAL, EDGE_HORIZONTAL = entryBrowser.EDGE_HORIZONTAL, POSITION_TYPE_ABSOLUTE = entryBrowser.POSITION_TYPE_ABSOLUTE, DISPLAY_NONE = entryBrowser.DISPLAY_NONE;
+    var Node$1 = entryBrowser.Node, EDGE_TOP = entryBrowser.EDGE_TOP, EDGE_RIGHT = entryBrowser.EDGE_RIGHT, EDGE_BOTTOM = entryBrowser.EDGE_BOTTOM, EDGE_ALL = entryBrowser.EDGE_ALL, EDGE_LEFT = entryBrowser.EDGE_LEFT, EDGE_START = entryBrowser.EDGE_START, EDGE_END = entryBrowser.EDGE_END, EDGE_VERTICAL = entryBrowser.EDGE_VERTICAL, EDGE_HORIZONTAL = entryBrowser.EDGE_HORIZONTAL, POSITION_TYPE_ABSOLUTE = entryBrowser.POSITION_TYPE_ABSOLUTE, DISPLAY_NONE = entryBrowser.DISPLAY_NONE, JUSTIFY_FLEX_START = entryBrowser.JUSTIFY_FLEX_START, ALIGN_STRETCH = entryBrowser.ALIGN_STRETCH, ALIGN_AUTO = entryBrowser.ALIGN_AUTO, FLEX_DIRECTION_COLUMN = entryBrowser.FLEX_DIRECTION_COLUMN, POSITION_TYPE_RELATIVE = entryBrowser.POSITION_TYPE_RELATIVE, WRAP_NO_WRAP = entryBrowser.WRAP_NO_WRAP, OVERFLOW_VISIBLE = entryBrowser.OVERFLOW_VISIBLE, DISPLAY_FLEX = entryBrowser.DISPLAY_FLEX;
     var YGMeasureModeUndefined = 0, YGMeasureModeExactly = 1, YGMeasureModeAtMost = 2;
+    var defaultYogaStyles = {
+        width: "auto",
+        height: "auto",
+        justifyContent: JUSTIFY_FLEX_START,
+        alignItems: ALIGN_STRETCH,
+        alignSelf: ALIGN_AUTO,
+        alignContent: ALIGN_STRETCH,
+        flexDirection: FLEX_DIRECTION_COLUMN,
+        padding: 0,
+        paddingTop: 0,
+        paddingLeft: 0,
+        paddingBottom: 0,
+        paddingRight: 0,
+        paddingHorizontal: 0,
+        paddingVertical: 0,
+        paddingStart: 0,
+        paddingEnd: 0,
+        margin: 0,
+        marginTop: 0,
+        marginLeft: 0,
+        marginBottom: 0,
+        marginRight: 0,
+        marginStart: 0,
+        marginEnd: 0,
+        marginVertical: 0,
+        marginHorizontal: 0,
+        border: 0,
+        borderStart: 0,
+        borderEnd: 0,
+        borderTop: 0,
+        borderLeft: 0,
+        borderBottom: 0,
+        borderRight: 0,
+        position: POSITION_TYPE_RELATIVE,
+        flexWrap: WRAP_NO_WRAP,
+        flexBasis: "auto",
+        flexGrow: 0,
+        flexShrink: 1,
+        overflow: OVERFLOW_VISIBLE,
+        display: DISPLAY_FLEX,
+    };
     var Style = /** @class */ (function () {
         function Style(el) {
             this.isMeasureFunctionSet = false;
@@ -12647,6 +12688,9 @@
             }
             this[name] = value;
             var node = this.el._yogaNode;
+            if (value === undefined) {
+                value = defaultYogaStyles[name];
+            }
             switch (name) {
                 case "font":
                 case "fontSize":
@@ -12665,164 +12709,165 @@
                     }
                     break;
                 case "alignContent":
-                    node.setAlignContent(value !== undefined ? value : NaN);
+                    node.setAlignContent(value);
                     break;
                 case "alignItems":
-                    node.setAlignItems(value !== undefined ? value : NaN);
+                    node.setAlignItems(value);
                     break;
                 case "alignSelf":
-                    node.setAlignSelf(value !== undefined ? value : NaN);
+                    node.setAlignSelf(value);
                     break;
                 case "aspectRatio":
-                    node.setAspectRatio(value !== undefined ? value : NaN);
+                    node.setAspectRatio(value);
                     break;
                 case "display":
                     this.el._flagsDirty = true;
-                    node.setDisplay(value !== undefined ? value : NaN);
+                    node.setDisplay(value);
                     break;
                 case "flex":
-                    node.setFlex(value !== undefined ? value : NaN);
+                    node.setFlex(value);
                     break;
                 case "flexBasis":
-                    node.setFlexBasis(value !== undefined ? value : NaN);
+                    node.setFlexBasis(value);
                     break;
                 case "flexDirection":
-                    node.setFlexDirection(value !== undefined ? value : NaN);
+                    node.setFlexDirection(value);
                     break;
                 case "flexGrow":
-                    node.setFlexGrow(value !== undefined ? value : NaN);
+                    node.setFlexGrow(value);
                     break;
                 case "flexShrink":
-                    node.setFlexShrink(value !== undefined ? value : NaN);
+                    node.setFlexShrink(value);
                     break;
                 case "flexWrap":
-                    node.setFlexWrap(value !== undefined ? value : NaN);
+                    node.setFlexWrap(value);
                     break;
                 case "height":
-                    node.setHeight(value !== undefined ? value : NaN);
+                    node.setHeight(value);
                     this.validateMeasureFun();
                     break;
                 case "justifyContent":
-                    node.setJustifyContent(value !== undefined ? value : NaN);
+                    node.setJustifyContent(value);
                     break;
                 case "maxHeight":
-                    node.setMaxHeight(value !== undefined ? value : NaN);
+                    node.setMaxHeight(value);
                     break;
                 case "maxWidth":
-                    node.setMaxWidth(value !== undefined ? value : NaN);
+                    node.setMaxWidth(value);
                     break;
                 case "minHeight":
-                    node.setMinHeight(value !== undefined ? value : NaN);
+                    node.setMinHeight(value);
                     break;
                 case "minWidth":
-                    node.setMinWidth(value !== undefined ? value : NaN);
+                    node.setMinWidth(value);
                     break;
                 case "overflow":
                     this.el._flagsDirty = true;
-                    node.setOverflow(value !== undefined ? value : NaN);
+                    node.setOverflow(value);
                     break;
                 case "position":
-                    node.setPositionType(value !== undefined ? value : NaN);
                     this.el._isAbsolute = value === POSITION_TYPE_ABSOLUTE;
+                    node.setPositionType(value);
                     break;
                 case "width":
-                    node.setWidth(value !== undefined ? value : NaN);
+                    node.setWidth(value);
                     this.validateMeasureFun();
                     break;
                 case "top":
-                    node.setPosition(EDGE_TOP, value !== undefined ? value : NaN);
+                    node.setPosition(EDGE_TOP, value);
                     break;
                 case "right":
-                    node.setPosition(EDGE_RIGHT, value !== undefined ? value : NaN);
+                    node.setPosition(EDGE_RIGHT, value);
                     break;
                 case "bottom":
-                    node.setPosition(EDGE_BOTTOM, value !== undefined ? value : NaN);
+                    node.setPosition(EDGE_BOTTOM, value);
                     break;
                 case "left":
-                    node.setPosition(EDGE_LEFT, value !== undefined ? value : NaN);
+                    node.setPosition(EDGE_LEFT, value);
                     break;
                 case "margin":
-                    node.setMargin(EDGE_ALL, value !== undefined ? value : NaN);
+                    node.setMargin(EDGE_ALL, value);
                     break;
                 case "marginTop":
-                    node.setMargin(EDGE_TOP, value !== undefined ? value : NaN);
+                    node.setMargin(EDGE_TOP, value);
                     break;
                 case "marginLeft":
-                    node.setMargin(EDGE_LEFT, value !== undefined ? value : NaN);
+                    node.setMargin(EDGE_LEFT, value);
                     break;
                 case "marginBottom":
-                    node.setMargin(EDGE_BOTTOM, value !== undefined ? value : NaN);
+                    node.setMargin(EDGE_BOTTOM, value);
                     break;
                 case "marginRight":
-                    node.setMargin(EDGE_RIGHT, value !== undefined ? value : NaN);
+                    node.setMargin(EDGE_RIGHT, value);
                     break;
                 case "marginVertical":
-                    node.setMargin(EDGE_VERTICAL, value !== undefined ? value : NaN);
+                    node.setMargin(EDGE_VERTICAL, value);
                     break;
                 case "marginHorizontal":
-                    node.setMargin(EDGE_HORIZONTAL, value !== undefined ? value : NaN);
+                    node.setMargin(EDGE_HORIZONTAL, value);
                     break;
                 case "padding":
-                    node.setPadding(EDGE_ALL, value !== undefined ? value : NaN);
+                    node.setPadding(EDGE_ALL, value);
                     break;
                 case "paddingTop":
-                    node.setPadding(EDGE_TOP, value !== undefined ? value : NaN);
+                    node.setPadding(EDGE_TOP, value);
                     break;
                 case "paddingLeft":
-                    node.setPadding(EDGE_LEFT, value !== undefined ? value : NaN);
+                    node.setPadding(EDGE_LEFT, value);
                     break;
                 case "paddingBottom":
-                    node.setPadding(EDGE_BOTTOM, value !== undefined ? value : NaN);
+                    node.setPadding(EDGE_BOTTOM, value);
                     break;
                 case "paddingRight":
-                    node.setPadding(EDGE_RIGHT, value !== undefined ? value : NaN);
+                    node.setPadding(EDGE_RIGHT, value);
                     break;
                 case "paddingVertical":
-                    node.setPadding(EDGE_VERTICAL, value !== undefined ? value : NaN);
+                    node.setPadding(EDGE_VERTICAL, value);
                     break;
                 case "paddingHorizontal":
-                    node.setPadding(EDGE_HORIZONTAL, value !== undefined ? value : NaN);
+                    node.setPadding(EDGE_HORIZONTAL, value);
                     break;
                 case "border":
                     this.el._flagsDirty = true;
-                    node.setBorder(EDGE_ALL, value !== undefined ? value : NaN);
+                    node.setBorder(EDGE_ALL, value);
                     break;
                 case "borderTop":
                     this.el._flagsDirty = true;
-                    node.setBorder(EDGE_TOP, value !== undefined ? value : NaN);
+                    node.setBorder(EDGE_TOP, value);
                     break;
                 case "borderLeft":
                     this.el._flagsDirty = true;
-                    node.setBorder(EDGE_LEFT, value !== undefined ? value : NaN);
+                    node.setBorder(EDGE_LEFT, value);
                     break;
                 case "borderBottom":
                     this.el._flagsDirty = true;
-                    node.setBorder(EDGE_BOTTOM, value !== undefined ? value : NaN);
+                    node.setBorder(EDGE_BOTTOM, value);
                     break;
                 case "borderRight":
                     this.el._flagsDirty = true;
-                    node.setBorder(EDGE_RIGHT, value !== undefined ? value : NaN);
+                    node.setBorder(EDGE_RIGHT, value);
                     break;
                 case "borderStart":
                     this.el._flagsDirty = true;
-                    node.setBorder(EDGE_START, value !== undefined ? value : NaN);
+                    node.setBorder(EDGE_START, value);
                     break;
                 case "borderEnd":
                     this.el._flagsDirty = true;
-                    node.setBorder(EDGE_END, value !== undefined ? value : NaN);
+                    node.setBorder(EDGE_END, value);
                     break;
                 case "paddingStart":
-                    node.setPadding(EDGE_START, value !== undefined ? value : NaN);
+                    node.setPadding(EDGE_START, value);
                     break;
                 case "paddingEnd":
-                    node.setPadding(EDGE_END, value !== undefined ? value : NaN);
+                    node.setPadding(EDGE_END, value);
                     break;
                 case "marginStart":
-                    node.setMargin(EDGE_START, value !== undefined ? value : NaN);
+                    node.setMargin(EDGE_START, value);
                     break;
                 case "marginEnd":
-                    node.setMargin(EDGE_END, value !== undefined ? value : NaN);
+                    node.setMargin(EDGE_END, value);
                     break;
+                case "background":
                 case "borderRadius":
                 case "borderColor":
                 case "shadowColor":
@@ -13126,13 +13171,13 @@
         return CanvasElement;
     }());
 
-    var JUSTIFY_CENTER = entryBrowser.JUSTIFY_CENTER, JUSTIFY_FLEX_END = entryBrowser.JUSTIFY_FLEX_END, JUSTIFY_FLEX_START = entryBrowser.JUSTIFY_FLEX_START, JUSTIFY_SPACE_AROUND = entryBrowser.JUSTIFY_SPACE_AROUND, JUSTIFY_SPACE_BETWEEN = entryBrowser.JUSTIFY_SPACE_BETWEEN, JUSTIFY_SPACE_EVENLY = entryBrowser.JUSTIFY_SPACE_EVENLY, ALIGN_AUTO = entryBrowser.ALIGN_AUTO, ALIGN_BASELINE = entryBrowser.ALIGN_BASELINE, ALIGN_CENTER = entryBrowser.ALIGN_CENTER, ALIGN_FLEX_END = entryBrowser.ALIGN_FLEX_END, ALIGN_FLEX_START = entryBrowser.ALIGN_FLEX_START, ALIGN_SPACE_AROUND = entryBrowser.ALIGN_SPACE_AROUND, ALIGN_SPACE_BETWEEN = entryBrowser.ALIGN_SPACE_BETWEEN, ALIGN_STRETCH = entryBrowser.ALIGN_STRETCH, FLEX_DIRECTION_COLUMN = entryBrowser.FLEX_DIRECTION_COLUMN, FLEX_DIRECTION_COLUMN_REVERSE = entryBrowser.FLEX_DIRECTION_COLUMN_REVERSE, FLEX_DIRECTION_ROW = entryBrowser.FLEX_DIRECTION_ROW, FLEX_DIRECTION_ROW_REVERSE = entryBrowser.FLEX_DIRECTION_ROW_REVERSE, WRAP_NO_WRAP = entryBrowser.WRAP_NO_WRAP, WRAP_WRAP = entryBrowser.WRAP_WRAP, WRAP_WRAP_REVERSE = entryBrowser.WRAP_WRAP_REVERSE, DISPLAY_FLEX = entryBrowser.DISPLAY_FLEX, DISPLAY_NONE$1 = entryBrowser.DISPLAY_NONE, OVERFLOW_HIDDEN = entryBrowser.OVERFLOW_HIDDEN, OVERFLOW_SCROLL = entryBrowser.OVERFLOW_SCROLL, OVERFLOW_VISIBLE = entryBrowser.OVERFLOW_VISIBLE, POSITION_TYPE_ABSOLUTE$1 = entryBrowser.POSITION_TYPE_ABSOLUTE, POSITION_TYPE_RELATIVE = entryBrowser.POSITION_TYPE_RELATIVE;
+    var JUSTIFY_CENTER = entryBrowser.JUSTIFY_CENTER, JUSTIFY_FLEX_END = entryBrowser.JUSTIFY_FLEX_END, JUSTIFY_FLEX_START$1 = entryBrowser.JUSTIFY_FLEX_START, JUSTIFY_SPACE_AROUND = entryBrowser.JUSTIFY_SPACE_AROUND, JUSTIFY_SPACE_BETWEEN = entryBrowser.JUSTIFY_SPACE_BETWEEN, JUSTIFY_SPACE_EVENLY = entryBrowser.JUSTIFY_SPACE_EVENLY, ALIGN_AUTO$1 = entryBrowser.ALIGN_AUTO, ALIGN_BASELINE = entryBrowser.ALIGN_BASELINE, ALIGN_CENTER = entryBrowser.ALIGN_CENTER, ALIGN_FLEX_END = entryBrowser.ALIGN_FLEX_END, ALIGN_FLEX_START = entryBrowser.ALIGN_FLEX_START, ALIGN_SPACE_AROUND = entryBrowser.ALIGN_SPACE_AROUND, ALIGN_SPACE_BETWEEN = entryBrowser.ALIGN_SPACE_BETWEEN, ALIGN_STRETCH$1 = entryBrowser.ALIGN_STRETCH, FLEX_DIRECTION_COLUMN$1 = entryBrowser.FLEX_DIRECTION_COLUMN, FLEX_DIRECTION_COLUMN_REVERSE = entryBrowser.FLEX_DIRECTION_COLUMN_REVERSE, FLEX_DIRECTION_ROW = entryBrowser.FLEX_DIRECTION_ROW, FLEX_DIRECTION_ROW_REVERSE = entryBrowser.FLEX_DIRECTION_ROW_REVERSE, WRAP_NO_WRAP$1 = entryBrowser.WRAP_NO_WRAP, WRAP_WRAP = entryBrowser.WRAP_WRAP, WRAP_WRAP_REVERSE = entryBrowser.WRAP_WRAP_REVERSE, DISPLAY_FLEX$1 = entryBrowser.DISPLAY_FLEX, DISPLAY_NONE$1 = entryBrowser.DISPLAY_NONE, OVERFLOW_HIDDEN = entryBrowser.OVERFLOW_HIDDEN, OVERFLOW_SCROLL = entryBrowser.OVERFLOW_SCROLL, OVERFLOW_VISIBLE$1 = entryBrowser.OVERFLOW_VISIBLE, POSITION_TYPE_ABSOLUTE$1 = entryBrowser.POSITION_TYPE_ABSOLUTE, POSITION_TYPE_RELATIVE$1 = entryBrowser.POSITION_TYPE_RELATIVE;
     function convertFlexDirection(value) {
         switch (value) {
             case 'column-reverse': return FLEX_DIRECTION_COLUMN_REVERSE;
             case 'row': return FLEX_DIRECTION_ROW;
             case 'row-reverse': return FLEX_DIRECTION_ROW_REVERSE;
-            default: return FLEX_DIRECTION_COLUMN;
+            default: return FLEX_DIRECTION_COLUMN$1;
         }
     }
     function convertJustifyContent(value) {
@@ -13149,46 +13194,46 @@
                 return JUSTIFY_SPACE_EVENLY;
             case 'flex-start':
             default:
-                return JUSTIFY_FLEX_START;
+                return JUSTIFY_FLEX_START$1;
         }
     }
     function convertAlign(value, defaultValue) {
         switch (value) {
-            case 'auto': return ALIGN_AUTO;
+            case 'auto': return ALIGN_AUTO$1;
             case 'baseline': return ALIGN_BASELINE;
             case 'center': return ALIGN_CENTER;
             case 'flex-end': return ALIGN_FLEX_END;
             case 'flex-start': return ALIGN_FLEX_START;
             case 'space-around': return ALIGN_SPACE_AROUND;
             case 'space-between': return ALIGN_SPACE_BETWEEN;
-            case 'stretch': return ALIGN_STRETCH;
+            case 'stretch': return ALIGN_STRETCH$1;
             default: return defaultValue;
         }
     }
     function convertPositionType(value) {
         switch (value) {
             case 'absolute': return POSITION_TYPE_ABSOLUTE$1;
-            default: return POSITION_TYPE_RELATIVE;
+            default: return POSITION_TYPE_RELATIVE$1;
         }
     }
     function convertFlexWrap(value) {
         switch (value) {
             case 'wrap': return WRAP_WRAP;
             case 'wrap-reverse': return WRAP_WRAP_REVERSE;
-            default: return WRAP_NO_WRAP;
+            default: return WRAP_NO_WRAP$1;
         }
     }
     function convertOverflow(value) {
         switch (value) {
             case 'hidden': return OVERFLOW_HIDDEN;
             case 'scroll': return OVERFLOW_SCROLL;
-            default: return OVERFLOW_VISIBLE;
+            default: return OVERFLOW_VISIBLE$1;
         }
     }
     function convertDisplay(value) {
         switch (value) {
             case 'none': return DISPLAY_NONE$1;
-            default: return DISPLAY_FLEX;
+            default: return DISPLAY_FLEX$1;
         }
     }
 
@@ -13197,7 +13242,7 @@
     var VERTICAL_ALIGN_MIDDLE$1 = 1;
     var VERTICAL_ALIGN_BOTTOM$1 = 2;
 
-    var ALIGN_STRETCH$1 = entryBrowser.ALIGN_STRETCH, ALIGN_AUTO$1 = entryBrowser.ALIGN_AUTO;
+    var ALIGN_STRETCH$2 = entryBrowser.ALIGN_STRETCH, ALIGN_AUTO$2 = entryBrowser.ALIGN_AUTO;
     function parseTextAlign(value) {
         switch (value) {
             case "left":
@@ -13220,58 +13265,6 @@
         }
         return VERTICAL_ALIGN_TOP;
     }
-    // export const defaultStyle: IStyleProps = {
-    //   width: "auto",
-    //   height: "auto",
-    //   justifyContent: JUSTIFY_FLEX_START,
-    //   alignItems: ALIGN_STRETCH,
-    //   alignSelf: ALIGN_AUTO,
-    //   alignContent: ALIGN_STRETCH,
-    //   flexDirection: FLEX_DIRECTION_COLUMN,
-    //   padding: 0,
-    //   paddingTop: 0,
-    //   paddingLeft: 0,
-    //   paddingBottom: 0,
-    //   paddingRight: 0,
-    //   paddingHorizontal: 0,
-    //   paddingVertical: 0,
-    //   paddingStart: 0,
-    //   paddingEnd: 0,
-    //   margin: 0,
-    //   marginTop: 0,
-    //   marginLeft: 0,
-    //   marginBottom: 0,
-    //   marginRight: 0,
-    //   marginStart: 0,
-    //   marginEnd: 0,
-    //   marginVertical: 0,
-    //   marginHorizontal: 0,
-    //   border: 0,
-    //   borderStart: 0,
-    //   borderEnd: 0,
-    //   borderTop: 0,
-    //   borderLeft: 0,
-    //   borderBottom: 0,
-    //   borderRight: 0,
-    //   position: POSITION_TYPE_RELATIVE,
-    //   flexWrap: WRAP_NO_WRAP,
-    //   flexBasis: "auto",
-    //   flexGrow: 0,
-    //   flexShrink: 1,
-    //   overflow: OVERFLOW_VISIBLE,
-    //   display: DISPLAY_FLEX,
-    //   background: "transparent",
-    //   font: "serif",
-    //   fontSize: 10,
-    //   color: "#000000",
-    //   borderRadius: 0,
-    //   textAlign: TEXT_ALIGN_LEFT,
-    //   verticalAlign: VERTICAL_ALIGN_TOP,
-    //   shadowColor: "transparent",
-    //   shadowBlur: 0,
-    //   shadowOffsetX: 0,
-    //   shadowOffsetY: 0
-    // };
     function parseStyle(style) {
         if (!style) {
             return {};
@@ -13317,13 +13310,13 @@
             parsed.justifyContent = convertJustifyContent(style.justifyContent);
         }
         if (style.alignContent !== undefined && typeof style.alignContent !== 'number') {
-            parsed.alignContent = convertAlign(style.alignContent, ALIGN_STRETCH$1);
+            parsed.alignContent = convertAlign(style.alignContent, ALIGN_STRETCH$2);
         }
         if (style.alignItems !== undefined && typeof style.alignItems !== 'number') {
-            parsed.alignItems = convertAlign(style.alignItems, ALIGN_STRETCH$1);
+            parsed.alignItems = convertAlign(style.alignItems, ALIGN_STRETCH$2);
         }
         if (style.alignSelf !== undefined && typeof style.alignSelf !== 'number') {
-            parsed.alignSelf = convertAlign(style.alignSelf, ALIGN_AUTO$1);
+            parsed.alignSelf = convertAlign(style.alignSelf, ALIGN_AUTO$2);
         }
         if (style.position !== undefined && typeof style.position !== 'number') {
             parsed.position = convertPositionType(style.position);
@@ -14133,7 +14126,7 @@
             var layoutLeft = yogaNode.getComputedLeft() + x, layoutTop = yogaNode.getComputedTop() + y, layoutWidth = needDimentions ? yogaNode.getComputedWidth() : 0, layoutHeight = needDimentions ? yogaNode.getComputedHeight() : 0;
             var hasBorder = flags & HAS_BORDER$1;
             var borderLeft = hasBorder ? yogaNode.getComputedBorder(EDGE_LEFT$1) : 0, borderTop = hasBorder ? yogaNode.getComputedBorder(EDGE_TOP$1) : 0, borderRight = hasBorder ? yogaNode.getComputedBorder(EDGE_RIGHT$1) : 0, borderBottom = hasBorder ? yogaNode.getComputedBorder(EDGE_BOTTOM$1) : 0;
-            var borderRadius = flags & HAS_BORDER_RADIUS$1 ? 0 : style.borderRadius;
+            var borderRadius = flags & HAS_BORDER_RADIUS$1 ? style.borderRadius : 0;
             var shouldClipChildren = flags & HAS_CLIPPING$1;
             if (flags & HAS_BACKGROUND$1) {
                 this._lastCachedContext.setFillStyle(style.background);
@@ -14165,8 +14158,8 @@
                 this._renderBorder(style.borderColor, borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
             }
             if (shouldClipChildren) {
-                // set clipping
                 this._addContext();
+                // set clipping
                 this._clipNode(borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
             }
             if (flags & HAS_CHILDREN$1) {

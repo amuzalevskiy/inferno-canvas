@@ -492,7 +492,7 @@ export class CanvasView {
       borderTop = hasBorder ? yogaNode.getComputedBorder(EDGE_TOP) : 0,
       borderRight = hasBorder ? yogaNode.getComputedBorder(EDGE_RIGHT) : 0,
       borderBottom = hasBorder ? yogaNode.getComputedBorder(EDGE_BOTTOM) : 0;
-    const borderRadius = flags & HAS_BORDER_RADIUS ? 0 : style.borderRadius!;
+    const borderRadius = flags & HAS_BORDER_RADIUS ? style.borderRadius! : 0;
     const shouldClipChildren = flags & HAS_CLIPPING;
 
     if (flags & HAS_BACKGROUND) {

@@ -363,7 +363,7 @@ var CanvasView = /** @class */ (function () {
         var layoutLeft = yogaNode.getComputedLeft() + x, layoutTop = yogaNode.getComputedTop() + y, layoutWidth = needDimentions ? yogaNode.getComputedWidth() : 0, layoutHeight = needDimentions ? yogaNode.getComputedHeight() : 0;
         var hasBorder = flags & exports.HAS_BORDER;
         var borderLeft = hasBorder ? yogaNode.getComputedBorder(EDGE_LEFT) : 0, borderTop = hasBorder ? yogaNode.getComputedBorder(EDGE_TOP) : 0, borderRight = hasBorder ? yogaNode.getComputedBorder(EDGE_RIGHT) : 0, borderBottom = hasBorder ? yogaNode.getComputedBorder(EDGE_BOTTOM) : 0;
-        var borderRadius = flags & exports.HAS_BORDER_RADIUS ? 0 : style.borderRadius;
+        var borderRadius = flags & exports.HAS_BORDER_RADIUS ? style.borderRadius : 0;
         var shouldClipChildren = flags & exports.HAS_CLIPPING;
         if (flags & exports.HAS_BACKGROUND) {
             this._lastCachedContext.setFillStyle(style.background);
@@ -395,8 +395,8 @@ var CanvasView = /** @class */ (function () {
             this._renderBorder(style.borderColor, borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
         }
         if (shouldClipChildren) {
-            // set clipping
             this._addContext();
+            // set clipping
             this._clipNode(borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
         }
         if (flags & exports.HAS_CHILDREN) {

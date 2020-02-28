@@ -1,9 +1,50 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var yoga_layout_1 = require("yoga-layout");
-var Node = yoga_layout_1.default.Node, EDGE_TOP = yoga_layout_1.default.EDGE_TOP, EDGE_RIGHT = yoga_layout_1.default.EDGE_RIGHT, EDGE_BOTTOM = yoga_layout_1.default.EDGE_BOTTOM, EDGE_ALL = yoga_layout_1.default.EDGE_ALL, EDGE_LEFT = yoga_layout_1.default.EDGE_LEFT, EDGE_START = yoga_layout_1.default.EDGE_START, EDGE_END = yoga_layout_1.default.EDGE_END, EDGE_VERTICAL = yoga_layout_1.default.EDGE_VERTICAL, EDGE_HORIZONTAL = yoga_layout_1.default.EDGE_HORIZONTAL, POSITION_TYPE_ABSOLUTE = yoga_layout_1.default.POSITION_TYPE_ABSOLUTE, DISPLAY_NONE = yoga_layout_1.default.DISPLAY_NONE;
+var Node = yoga_layout_1.default.Node, EDGE_TOP = yoga_layout_1.default.EDGE_TOP, EDGE_RIGHT = yoga_layout_1.default.EDGE_RIGHT, EDGE_BOTTOM = yoga_layout_1.default.EDGE_BOTTOM, EDGE_ALL = yoga_layout_1.default.EDGE_ALL, EDGE_LEFT = yoga_layout_1.default.EDGE_LEFT, EDGE_START = yoga_layout_1.default.EDGE_START, EDGE_END = yoga_layout_1.default.EDGE_END, EDGE_VERTICAL = yoga_layout_1.default.EDGE_VERTICAL, EDGE_HORIZONTAL = yoga_layout_1.default.EDGE_HORIZONTAL, POSITION_TYPE_ABSOLUTE = yoga_layout_1.default.POSITION_TYPE_ABSOLUTE, DISPLAY_NONE = yoga_layout_1.default.DISPLAY_NONE, JUSTIFY_FLEX_START = yoga_layout_1.default.JUSTIFY_FLEX_START, ALIGN_STRETCH = yoga_layout_1.default.ALIGN_STRETCH, ALIGN_AUTO = yoga_layout_1.default.ALIGN_AUTO, FLEX_DIRECTION_COLUMN = yoga_layout_1.default.FLEX_DIRECTION_COLUMN, POSITION_TYPE_RELATIVE = yoga_layout_1.default.POSITION_TYPE_RELATIVE, WRAP_NO_WRAP = yoga_layout_1.default.WRAP_NO_WRAP, OVERFLOW_VISIBLE = yoga_layout_1.default.OVERFLOW_VISIBLE, DISPLAY_FLEX = yoga_layout_1.default.DISPLAY_FLEX;
 var renderUtils_1 = require("./renderUtils");
 var YGMeasureModeUndefined = 0, YGMeasureModeExactly = 1, YGMeasureModeAtMost = 2;
+var defaultYogaStyles = {
+    width: "auto",
+    height: "auto",
+    justifyContent: JUSTIFY_FLEX_START,
+    alignItems: ALIGN_STRETCH,
+    alignSelf: ALIGN_AUTO,
+    alignContent: ALIGN_STRETCH,
+    flexDirection: FLEX_DIRECTION_COLUMN,
+    padding: 0,
+    paddingTop: 0,
+    paddingLeft: 0,
+    paddingBottom: 0,
+    paddingRight: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    paddingStart: 0,
+    paddingEnd: 0,
+    margin: 0,
+    marginTop: 0,
+    marginLeft: 0,
+    marginBottom: 0,
+    marginRight: 0,
+    marginStart: 0,
+    marginEnd: 0,
+    marginVertical: 0,
+    marginHorizontal: 0,
+    border: 0,
+    borderStart: 0,
+    borderEnd: 0,
+    borderTop: 0,
+    borderLeft: 0,
+    borderBottom: 0,
+    borderRight: 0,
+    position: POSITION_TYPE_RELATIVE,
+    flexWrap: WRAP_NO_WRAP,
+    flexBasis: "auto",
+    flexGrow: 0,
+    flexShrink: 1,
+    overflow: OVERFLOW_VISIBLE,
+    display: DISPLAY_FLEX,
+};
 var Style = /** @class */ (function () {
     function Style(el) {
         this.isMeasureFunctionSet = false;
@@ -24,6 +65,9 @@ var Style = /** @class */ (function () {
         }
         this[name] = value;
         var node = this.el._yogaNode;
+        if (value === undefined) {
+            value = defaultYogaStyles[name];
+        }
         switch (name) {
             case "font":
             case "fontSize":
@@ -54,12 +98,8 @@ var Style = /** @class */ (function () {
                 node.setAspectRatio(value);
                 break;
             case "display":
-<<<<<<< HEAD
-                node.setDisplay(value);
-=======
                 this.el._flagsDirty = true;
-                node.setDisplay(value !== undefined ? value : NaN);
->>>>>>> 5b5b9f6f514302dac0843a38b94e93030f15f960
+                node.setDisplay(value);
                 break;
             case "flex":
                 node.setFlex(value);
@@ -99,19 +139,12 @@ var Style = /** @class */ (function () {
                 node.setMinWidth(value);
                 break;
             case "overflow":
-<<<<<<< HEAD
+                this.el._flagsDirty = true;
                 node.setOverflow(value);
                 break;
             case "position":
-                node.setPositionType(value);
-=======
-                this.el._flagsDirty = true;
-                node.setOverflow(value !== undefined ? value : NaN);
-                break;
-            case "position":
-                node.setPositionType(value !== undefined ? value : NaN);
                 this.el._isAbsolute = value === POSITION_TYPE_ABSOLUTE;
->>>>>>> 5b5b9f6f514302dac0843a38b94e93030f15f960
+                node.setPositionType(value);
                 break;
             case "width":
                 node.setWidth(value);
@@ -172,54 +205,32 @@ var Style = /** @class */ (function () {
                 node.setPadding(EDGE_HORIZONTAL, value);
                 break;
             case "border":
-<<<<<<< HEAD
+                this.el._flagsDirty = true;
                 node.setBorder(EDGE_ALL, value);
                 break;
             case "borderTop":
+                this.el._flagsDirty = true;
                 node.setBorder(EDGE_TOP, value);
                 break;
             case "borderLeft":
+                this.el._flagsDirty = true;
                 node.setBorder(EDGE_LEFT, value);
                 break;
             case "borderBottom":
+                this.el._flagsDirty = true;
                 node.setBorder(EDGE_BOTTOM, value);
                 break;
             case "borderRight":
+                this.el._flagsDirty = true;
                 node.setBorder(EDGE_RIGHT, value);
                 break;
             case "borderStart":
+                this.el._flagsDirty = true;
                 node.setBorder(EDGE_START, value);
                 break;
             case "borderEnd":
+                this.el._flagsDirty = true;
                 node.setBorder(EDGE_END, value);
-=======
-                this.el._flagsDirty = true;
-                node.setBorder(EDGE_ALL, value !== undefined ? value : NaN);
-                break;
-            case "borderTop":
-                this.el._flagsDirty = true;
-                node.setBorder(EDGE_TOP, value !== undefined ? value : NaN);
-                break;
-            case "borderLeft":
-                this.el._flagsDirty = true;
-                node.setBorder(EDGE_LEFT, value !== undefined ? value : NaN);
-                break;
-            case "borderBottom":
-                this.el._flagsDirty = true;
-                node.setBorder(EDGE_BOTTOM, value !== undefined ? value : NaN);
-                break;
-            case "borderRight":
-                this.el._flagsDirty = true;
-                node.setBorder(EDGE_RIGHT, value !== undefined ? value : NaN);
-                break;
-            case "borderStart":
-                this.el._flagsDirty = true;
-                node.setBorder(EDGE_START, value !== undefined ? value : NaN);
-                break;
-            case "borderEnd":
-                this.el._flagsDirty = true;
-                node.setBorder(EDGE_END, value !== undefined ? value : NaN);
->>>>>>> 5b5b9f6f514302dac0843a38b94e93030f15f960
                 break;
             case "paddingStart":
                 node.setPadding(EDGE_START, value);
@@ -233,6 +244,7 @@ var Style = /** @class */ (function () {
             case "marginEnd":
                 node.setMargin(EDGE_END, value);
                 break;
+            case "background":
             case "borderRadius":
             case "borderColor":
             case "shadowColor":

@@ -1,5 +1,5 @@
 import YogaLayout, {
-    YogaNode, YogaFlexDirection, YogaJustifyContent, YogaAlign, YogaPositionType, YogaFlexWrap, YogaOverflow, YogaDisplay, JUSTIFY_FLEX_START, ALIGN_STRETCH, ALIGN_AUTO, FLEX_DIRECTION_COLUMN, POSITION_TYPE_RELATIVE, WRAP_NO_WRAP, OVERFLOW_VISIBLE, DISPLAY_FLEX
+    YogaNode, YogaFlexDirection, YogaJustifyContent, YogaAlign, YogaPositionType, YogaFlexWrap, YogaOverflow, YogaDisplay
 } from "yoga-layout";
 
 const {
@@ -14,7 +14,15 @@ const {
     EDGE_VERTICAL,
     EDGE_HORIZONTAL,
     POSITION_TYPE_ABSOLUTE,
-    DISPLAY_NONE
+    DISPLAY_NONE,
+    JUSTIFY_FLEX_START,
+    ALIGN_STRETCH,
+    ALIGN_AUTO,
+    FLEX_DIRECTION_COLUMN,
+    POSITION_TYPE_RELATIVE,
+    WRAP_NO_WRAP,
+    OVERFLOW_VISIBLE,
+    DISPLAY_FLEX
 } = YogaLayout;
 
 import {IStyleProps, TEXT_ALIGN, VERTICAL_ALIGN, ILayoutNode} from "./node";
