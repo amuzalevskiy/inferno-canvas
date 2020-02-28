@@ -12,12 +12,15 @@ const {
     EDGE_START,
     EDGE_END,
     EDGE_VERTICAL,
-    EDGE_HORIZONTAL
+    EDGE_HORIZONTAL,
+    POSITION_TYPE_ABSOLUTE,
+    DISPLAY_NONE
 } = YogaLayout;
 
 import {IStyleProps, TEXT_ALIGN, VERTICAL_ALIGN, ILayoutNode} from "./node";
 import { measureText, countLines, TEXT_ALIGN_LEFT, VERTICAL_ALIGN_TOP } from "./renderUtils";
 import { CanvasElementRegistry } from "./CanvasElementRegistry";
+import { CanvasViewEvent } from "./CanvasViewEvent";
 
 const YGMeasureModeUndefined = 0,
     YGMeasureModeExactly = 1,
@@ -174,6 +177,8 @@ class Style implements IStyleProps {
             case "font":
             case "fontSize":
                 if (this.fontSize && this.font) {
+                    // this calculation takes time and memory
+                    // when done during rendering
                     this._fullFont = this.fontSize + "px " + this.font;
                 }
             // tslint:disable-next-line:no-switch-case-fall-through
@@ -198,6 +203,7 @@ class Style implements IStyleProps {
                 node.setAspectRatio(value);
                 break;
             case "display":
+                this.el._flagsDirty = true;
                 node.setDisplay(value);
                 break;
             case "flex":
@@ -238,9 +244,11 @@ class Style implements IStyleProps {
                 node.setMinWidth(value);
                 break;
             case "overflow":
+                this.el._flagsDirty = true;
                 node.setOverflow(value);
                 break;
             case "position":
+                this.el._isAbsolute = value === POSITION_TYPE_ABSOLUTE;
                 node.setPositionType(value);
                 break;
             case "width":
@@ -305,26 +313,31 @@ class Style implements IStyleProps {
                 break;
 
             case "border":
+                this.el._flagsDirty = true;
                 node.setBorder(EDGE_ALL, value);
                 break;
             case "borderTop":
+                this.el._flagsDirty = true;
                 node.setBorder(EDGE_TOP, value);
                 break;
             case "borderLeft":
+                this.el._flagsDirty = true;
                 node.setBorder(EDGE_LEFT, value);
                 break;
             case "borderBottom":
+                this.el._flagsDirty = true;
                 node.setBorder(EDGE_BOTTOM, value);
                 break;
             case "borderRight":
+                this.el._flagsDirty = true;
                 node.setBorder(EDGE_RIGHT, value);
                 break;
-
-
             case "borderStart":
+                this.el._flagsDirty = true;
                 node.setBorder(EDGE_START, value);
                 break;
             case "borderEnd":
+                this.el._flagsDirty = true;
                 node.setBorder(EDGE_END, value);
                 break;
             case "paddingStart":
@@ -339,6 +352,14 @@ class Style implements IStyleProps {
                 break;
             case "marginEnd":
                 node.setMargin(EDGE_END, value);
+                break;
+
+            case "background":
+            case "borderRadius":
+            case "borderColor":
+            case "shadowColor":
+            case "backgroundImage":
+                this.el._flagsDirty = true;
                 break;
         }
     }
@@ -412,14 +433,60 @@ class Style implements IStyleProps {
     };
   }
 }
+
+export const HAS_CHILDREN = 1;
+export const HAS_BORDER = 2;
+export const HAS_BACKGROUND = 4;
+export const HAS_SHADOW = 8;
+export const HAS_BACKGROUND_IMAGE = 16;
+export const HAS_CLIPPING = 32;
+export const HAS_BORDER_RADIUS = 64;
+export const SKIP = 128;
+export const HAS_TEXT = 256;
+
 export class CanvasElement implements ILayoutNode {
     readonly registry: CanvasElementRegistry;
     readonly nodeName: string;
+    public _flagsDirty: boolean = false;
+    private _flags: number = 0;
+    public _isAbsolute: boolean = false;
     constructor(nodeName: string, registry: CanvasElementRegistry) {
         this.nodeName = nodeName;
         this.registry = registry;
         this._yogaNode = Node.create();
         this.style = new Style(this);
+    }
+
+    getFlags() {
+        if (this._flagsDirty) {
+            this._flagsDirty = false;
+            const style = this.style;
+            if (style.display === DISPLAY_NONE) {
+                this._flags = SKIP;
+            }
+            const _yogaNode = this._yogaNode;
+            const borderRadius = style.borderRadius || 0;
+            const borderLeft = _yogaNode.getComputedBorder(EDGE_LEFT),
+                    borderTop = _yogaNode.getComputedBorder(EDGE_TOP),
+                    borderRight = _yogaNode.getComputedBorder(EDGE_RIGHT),
+                    borderBottom = _yogaNode.getComputedBorder(EDGE_BOTTOM);
+            const hasBorder = style.borderColor !== undefined &&
+                (borderTop > 0 ||
+                borderLeft > 0 ||
+                borderBottom > 0 ||
+                borderRight > 0);
+            const shouldClipChildren = !!style.overflow || hasBorder;
+            this._flags =
+                (this.children && this.children.length ? HAS_CHILDREN : 0) |
+                (hasBorder ? HAS_BORDER : 0) |
+                (shouldClipChildren ? HAS_CLIPPING : 0) |
+                (borderRadius > 0 ? HAS_BORDER_RADIUS : 0) |
+                (style.backgroundImage ? HAS_BACKGROUND_IMAGE : 0) |
+                (style.shadowColor && style.shadowColor !== "transparent" ? HAS_SHADOW : 0) |
+                (style.background && style.background !== "transparent" ? HAS_BACKGROUND : 0) |
+                (this.content !== undefined && this.content !== "" && style.color && style._fullFont ? HAS_TEXT : 0);
+        }
+        return this._flags;
     }
 
     free() {
@@ -436,7 +503,7 @@ export class CanvasElement implements ILayoutNode {
     public content?: string;
 
     public _doc: any;
-    public $EV?: {[name: string]: () => any}
+    public $EV?: {[name: string]: (ev: CanvasViewEvent) => any}
 
     set innerHTML(value: string) {
         throw new Error("Unsupported operation.");
@@ -484,6 +551,7 @@ export class CanvasElement implements ILayoutNode {
         (this as any)[name] = value;
         switch (name) {
             case "content":
+                this._flagsDirty = true;
                 // invalidate layout
                 if (this.style.isMeasureFunctionSet && !this._yogaNode.isDirty()) {
                     this._yogaNode.markDirty();
@@ -502,6 +570,7 @@ export class CanvasElement implements ILayoutNode {
         (this as any)[name] = undefined;
         switch (name) {
             case "content":
+                this._flagsDirty = true;
                 // invalidate layout
                 if (!this._yogaNode.isDirty()) {
                     this._yogaNode.markDirty();
@@ -514,6 +583,7 @@ export class CanvasElement implements ILayoutNode {
     }
 
     appendChild(child: CanvasElement) {
+        this._flagsDirty = true;
         if (this._doc && !this._doc.dirty) {
             this._doc.markDirty();
         }
@@ -532,6 +602,7 @@ export class CanvasElement implements ILayoutNode {
     
 
     insertBefore(newNode: CanvasElement, nextNode: CanvasElement) {
+        this._flagsDirty = true;
         if (this._doc && !this._doc.dirty) {
             this._doc.markDirty();
         }
@@ -555,6 +626,7 @@ export class CanvasElement implements ILayoutNode {
     }
 
     replaceChild(newDom: CanvasElement, lastDom: CanvasElement) {
+        this._flagsDirty = true;
         if (this._doc && !this._doc.dirty) {
             this._doc.markDirty();
         }
@@ -575,6 +647,7 @@ export class CanvasElement implements ILayoutNode {
     }
 
     removeChild(childNode: CanvasElement) {
+        this._flagsDirty = true;
         if (this._doc && !this._doc.dirty) {
             this._doc.markDirty();
         }

@@ -1,5 +1,6 @@
-import { IRenderSpec, ILayoutNode } from './node';
+import { IRenderSpec } from './node';
 import { CanvasView } from './CanvasView';
+import { CanvasElement } from './CanvasElement';
 export declare class ZIndexQueue {
     queue: Map<number, Array<IRenderSpec>>;
     empty: boolean;
@@ -7,5 +8,5 @@ export declare class ZIndexQueue {
     unshift(nodeRenderSpec: IRenderSpec): void;
     private getOrCreateQueue;
     render(view: CanvasView): void;
-    hitTest(offsetX: number, offsetY: number, view: CanvasView): ILayoutNode | undefined;
+    hitTest(offsetX: number, offsetY: number, view: CanvasView): CanvasElement | undefined;
 }

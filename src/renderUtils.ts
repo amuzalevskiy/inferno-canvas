@@ -160,8 +160,7 @@ export function measureText(font: string, content: string): { width: number } {
   if (!cacheObj) {
     cacheObj = {};
     measureTextCache.set(content, cacheObj);
-  }
-  if (cacheObj[font]) {
+  } else if (cacheObj[font]) {
     return cacheObj[font];
   }
   if (!_measureContext) {

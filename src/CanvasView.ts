@@ -24,12 +24,11 @@ import {
 import { ImageCache, ImageCacheEntry } from "./ImageCache";
 import { renderQueue } from "./renderQueue";
 import {
-  ILayoutNode,
   IRect,
   IStyleProps,
 } from "./node";
 import { ZIndexQueue } from "./ZIndexQueue";
-import { LayoutEvent, bubbleEvent, mapEventType } from "./LayoutEvent";
+import { CanvasViewEvent, bubbleEvent, mapEventType } from "./CanvasViewEvent";
 import { CanvasElement } from "./CanvasElement";
 import { TextureAtlas } from "./TextureAtlas";
 import { CanvasDocument } from "./CanvasDocument";
@@ -48,7 +47,7 @@ interface IListenersState {
   [eventName: string]: boolean;
 }
 
-function getAncestorsAndSelf(node: ILayoutNode|undefined): Array<ILayoutNode> {
+function getAncestorsAndSelf(node: CanvasElement|undefined): Array<CanvasElement> {
   let ancestorsAndSelf = [];
   while (node) {
     ancestorsAndSelf.push(node);
@@ -152,6 +151,19 @@ const eventsMapping: {[eventName: string]: string} = isTouchDevice ? {
 
 const reverseEventsMapping = reverseObject(eventsMapping);
 
+// THERE IS AN COPY IN CANVAS ELEMENT
+export const HAS_CHILDREN = 1;
+export const HAS_BORDER = 2;
+export const HAS_BACKGROUND = 4;
+export const HAS_SHADOW = 8;
+export const HAS_BACKGROUND_IMAGE = 16;
+export const HAS_CLIPPING = 32;
+export const HAS_BORDER_RADIUS = 64;
+export const SKIP = 128;
+export const HAS_TEXT = 256;
+
+const NEEDS_DIMENTIONS = HAS_BORDER | HAS_BACKGROUND | HAS_SHADOW | HAS_BACKGROUND_IMAGE | HAS_CLIPPING | HAS_TEXT;
+
 export class CanvasView {
   public doc!: CanvasDocument;
   private _spec: CanvasElement;
@@ -163,7 +175,7 @@ export class CanvasView {
   private _width: number;
   private _height: number;
   private _direction: YogaDirection = DIRECTION_LTR;
-  private _previousTarget: ILayoutNode | undefined;
+  private _previousTarget: CanvasElement | undefined;
 
   private _listenersState: IListenersState = {
     click: false,
@@ -241,7 +253,7 @@ export class CanvasView {
   }
 
   private _processEvent = (e: MouseEvent | TouchEvent) => {
-    let target: ILayoutNode | undefined;
+    let target: CanvasElement | undefined;
     if (e instanceof MouseEvent) {
       target = this.findHitTarget(e.offsetX, e.offsetY);
     } else {
@@ -267,7 +279,7 @@ export class CanvasView {
     bubbleEvent(e, reverseEventsMapping[e.type], target);
   }
 
-  public findHitTarget(offsetX: number, offsetY: number): ILayoutNode | undefined {
+  public findHitTarget(offsetX: number, offsetY: number): CanvasElement | undefined {
     // hits rendered region?
     let ctx = this._ctx;
     ctx.beginPath();
@@ -291,11 +303,11 @@ export class CanvasView {
 
   public _hitTest(
     offsetX: number, offsetY: number,
-    node: ILayoutNode,
+    node: CanvasElement,
     x: number,
     y: number,
     queue: ZIndexQueue
-  ): ILayoutNode | undefined {
+  ): CanvasElement | undefined {
     const ctx = this._ctx;
     const overflow = node.style.overflow;
     const shouldClipChildren = overflow === OVERFLOW_HIDDEN || overflow === OVERFLOW_SCROLL;
@@ -334,7 +346,7 @@ export class CanvasView {
     return foundTarget;
   }
 
-  private _hitTestChildren(node: ILayoutNode, queue: ZIndexQueue, layoutLeft: number, layoutTop: number, offsetX: number, offsetY: number) {
+  private _hitTestChildren(node: CanvasElement, queue: ZIndexQueue, layoutLeft: number, layoutTop: number, offsetX: number, offsetY: number) {
     
     // if item has border
     // must verify if pointer is over border
@@ -344,7 +356,7 @@ export class CanvasView {
     if (!node.children) {
       return undefined;
     }
-    let foundTarget: ILayoutNode | undefined;
+    let foundTarget: CanvasElement | undefined;
     for (var i = node.children.length - 1; i >= 0; i--) {
       var childNode = node.children[i];
       if (childNode.style.position === POSITION_TYPE_ABSOLUTE) {
@@ -368,7 +380,7 @@ export class CanvasView {
    * Only builds ZIndex queue...
    */
   private _hitTestBuildZIndexQueue(
-    node: ILayoutNode,
+    node: CanvasElement,
     x: number,
     y: number,
     queue: ZIndexQueue
@@ -403,7 +415,7 @@ export class CanvasView {
   }
 
   // tslint:disable:strict-type-predicates
-  private _trackMouseEnterAndLeave(e: Event, nextTarget: ILayoutNode | undefined): void {
+  private _trackMouseEnterAndLeave(e: Event, nextTarget: CanvasElement | undefined): void {
     // let event = new LayoutEvent(e, node);
     let previousTargets = getAncestorsAndSelf(this._previousTarget);
     let nextTargets = getAncestorsAndSelf(nextTarget);
@@ -414,7 +426,7 @@ export class CanvasView {
         pt.$EV && typeof pt.$EV.onMouseLeave === "function" &&
         nextTargets.indexOf(pt) === -1
       ) {
-        pt.$EV.onMouseLeave(new LayoutEvent(e, "mouseleave", pt, false));
+        pt.$EV.onMouseLeave(new CanvasViewEvent(e, "mouseleave", pt, false));
       }
     }
     for (i = 0; i < nextTargets.length; i += 1) {
@@ -423,7 +435,7 @@ export class CanvasView {
         nt.$EV && typeof nt.$EV.onMouseEnter === "function" &&
         previousTargets.indexOf(nt) === -1
       ) {
-        nt.$EV.onMouseEnter(new LayoutEvent(e, "mouseenter", nt, false));
+        nt.$EV.onMouseEnter(new CanvasViewEvent(e, "mouseenter", nt, false));
       }
     }
     this._previousTarget = nextTarget;
@@ -458,34 +470,33 @@ export class CanvasView {
   }
 
   public _renderNode(
-    node: ILayoutNode,
+    node: CanvasElement,
     x: number,
     y: number
   ) {
+    const flags = node.getFlags();
+    if (flags & SKIP) {
+      return;
+    }
     const ctx = this._ctx;
-    const _yogaNode = node._yogaNode;
+    const yogaNode = node._yogaNode;
     const style = node.style;
-    const overflow = style.overflow;
-    const shouldClipChildren = !!overflow;
-    // const shouldClipChildren = overflow === OVERFLOW_HIDDEN || overflow === OVERFLOW_SCROLL;
-    const layoutLeft = _yogaNode.getComputedLeft() + x,
-      layoutTop = _yogaNode.getComputedTop() + y,
-      layoutWidth = _yogaNode.getComputedWidth(),
-      layoutHeight = _yogaNode.getComputedHeight();
+    const needDimentions = flags & NEEDS_DIMENTIONS;
+    const layoutLeft = yogaNode.getComputedLeft() + x,
+      layoutTop = yogaNode.getComputedTop() + y,
+      layoutWidth = needDimentions ? yogaNode.getComputedWidth() : 0,
+      layoutHeight = needDimentions ? yogaNode.getComputedHeight() : 0;
 
-    const borderLeft = _yogaNode.getComputedBorder(EDGE_LEFT),
-      borderTop = _yogaNode.getComputedBorder(EDGE_TOP),
-      borderRight = _yogaNode.getComputedBorder(EDGE_RIGHT),
-      borderBottom = _yogaNode.getComputedBorder(EDGE_BOTTOM);
-    const borderRadius = style.borderRadius || 0;
-    const hasBorder = !!style.borderColor &&
-      (borderTop > 0 ||
-        borderLeft > 0 ||
-        borderBottom > 0 ||
-        borderRight > 0);
+    const hasBorder = flags & HAS_BORDER;
+    const borderLeft = hasBorder ? yogaNode.getComputedBorder(EDGE_LEFT) : 0,
+      borderTop = hasBorder ? yogaNode.getComputedBorder(EDGE_TOP) : 0,
+      borderRight = hasBorder ? yogaNode.getComputedBorder(EDGE_RIGHT) : 0,
+      borderBottom = hasBorder ? yogaNode.getComputedBorder(EDGE_BOTTOM) : 0;
+    const borderRadius = flags & HAS_BORDER_RADIUS ? 0 : style.borderRadius!;
+    const shouldClipChildren = flags & HAS_CLIPPING;
 
-    if (style.background) {
-      this._lastCachedContext.setFillStyle(style.background);
+    if (flags & HAS_BACKGROUND) {
+      this._lastCachedContext.setFillStyle(style.background!);
       if (borderRadius > 0) {
         if (hasBorder) {
           // the only found way to fix rendering artifacts with rounded borders
@@ -516,7 +527,7 @@ export class CanvasView {
       }
     }
 
-    if (style.shadowColor && style.shadowColor !== "transparent") {
+    if (flags & HAS_SHADOW) {
       this._renderShadow(
         ctx,
         borderRadius,
@@ -525,7 +536,7 @@ export class CanvasView {
         hasBorder
       );
     }
-    if (style.backgroundImage) {
+    if (flags & HAS_BACKGROUND_IMAGE) {
       this._renderBackgroundImage(style, layoutLeft, layoutTop, layoutWidth, layoutHeight, borderLeft, borderTop, borderRight, borderBottom);
     }
     if (hasBorder) {
@@ -538,11 +549,12 @@ export class CanvasView {
       this._clipNode(borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
     }
 
-    if (node.children) {
-      var len = node.children.length;
+    if (flags & HAS_CHILDREN) {
+      var len = node.children!.length;
       for (var i = 0; i < len; i++) {
-        var childNode = node.children[i];
-        if (childNode.style.position === POSITION_TYPE_ABSOLUTE) {
+        var childNode = node.children![i];
+        // should be CanvasElement?
+        if ((childNode as any)._isAbsolute) {
           this._currentQueue.push({
             node: childNode,
             x: layoutLeft,
@@ -556,22 +568,14 @@ export class CanvasView {
           );
         }
       }
-    } else if (node.content !== undefined) {
-      var paddingLeft = _yogaNode.getComputedPadding(EDGE_LEFT),
-        paddingTop = _yogaNode.getComputedPadding(EDGE_TOP),
-        paddingRight = _yogaNode.getComputedPadding(EDGE_RIGHT),
-        paddingBottom = _yogaNode.getComputedPadding(EDGE_BOTTOM);
+    } else if (flags & HAS_TEXT) {
       this._renderText(node,
-        layoutLeft + paddingLeft + borderLeft,
-        layoutTop + paddingTop + borderTop,
+        layoutLeft + borderLeft,
+        layoutTop + borderTop,
         layoutWidth -
-            paddingLeft -
-            paddingRight -
             borderLeft -
             borderRight,
         layoutHeight -
-            paddingTop -
-            paddingBottom -
             borderTop -
             borderBottom
       );
@@ -589,7 +593,7 @@ export class CanvasView {
     borderRadius: number,
     layoutLeft: number, layoutTop: number, layoutWidth: number, layoutHeight: number,
     style: IStyleProps,
-    hasBorder: boolean
+    hasBorder: number
   ) {
     // a bit tricky
     // as shadow should not be visible under element
@@ -628,23 +632,20 @@ export class CanvasView {
   }
 
   private _renderText(
-    node: ILayoutNode,
+    node: CanvasElement,
     left: number, top: number, width: number, height: number
   ) {
-    const _yogaNode = node._yogaNode;
-    var paddingLeft = _yogaNode.getComputedPadding(EDGE_LEFT),
-      paddingTop = _yogaNode.getComputedPadding(EDGE_TOP),
-      paddingRight = _yogaNode.getComputedPadding(EDGE_RIGHT),
-      paddingBottom = _yogaNode.getComputedPadding(EDGE_BOTTOM);
     const style = node.style;
-    if (!style.color || !(style as any)._fullFont) {
-      // unable to render
-      return;
-    }
     const ctx = this._ctx;
-    this._lastCachedContext.setFillStyle(style.color);
-    this._lastCachedContext.setFont((style as any)._fullFont);
-
+    
+    const _yogaNode = node._yogaNode;
+    const paddingLeft = _yogaNode.getComputedPadding(EDGE_LEFT),
+        paddingTop = _yogaNode.getComputedPadding(EDGE_TOP),
+        paddingRight = _yogaNode.getComputedPadding(EDGE_RIGHT),
+        paddingBottom = _yogaNode.getComputedPadding(EDGE_BOTTOM);
+    
+    this._lastCachedContext.setFillStyle(style.color!);
+    this._lastCachedContext.setFont(style._fullFont!);
     if (style.maxLines && style.maxLines > 1) {
       renderMultilineText(
         ctx,

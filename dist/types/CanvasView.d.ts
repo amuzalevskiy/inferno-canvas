@@ -1,8 +1,16 @@
 import { YogaDirection } from "yoga-layout";
-import { ILayoutNode } from "./node";
 import { ZIndexQueue } from "./ZIndexQueue";
 import { CanvasElement } from "./CanvasElement";
 import { CanvasDocument } from "./CanvasDocument";
+export declare const HAS_CHILDREN = 1;
+export declare const HAS_BORDER = 2;
+export declare const HAS_BACKGROUND = 4;
+export declare const HAS_SHADOW = 8;
+export declare const HAS_BACKGROUND_IMAGE = 16;
+export declare const HAS_CLIPPING = 32;
+export declare const HAS_BORDER_RADIUS = 64;
+export declare const SKIP = 128;
+export declare const HAS_TEXT = 256;
 export declare class CanvasView {
     doc: CanvasDocument;
     private _spec;
@@ -28,8 +36,8 @@ export declare class CanvasView {
         [eventName: string]: number;
     }): void;
     private _processEvent;
-    findHitTarget(offsetX: number, offsetY: number): ILayoutNode | undefined;
-    _hitTest(offsetX: number, offsetY: number, node: ILayoutNode, x: number, y: number, queue: ZIndexQueue): ILayoutNode | undefined;
+    findHitTarget(offsetX: number, offsetY: number): CanvasElement | undefined;
+    _hitTest(offsetX: number, offsetY: number, node: CanvasElement, x: number, y: number, queue: ZIndexQueue): CanvasElement | undefined;
     private _hitTestChildren;
     /**
      * Only builds ZIndex queue...
@@ -38,7 +46,7 @@ export declare class CanvasView {
     private _trackMouseEnterAndLeave;
     private _layout;
     render(): void;
-    _renderNode(node: ILayoutNode, x: number, y: number): void;
+    _renderNode(node: CanvasElement, x: number, y: number): void;
     private _renderShadow;
     private _renderText;
     private _renderBackgroundImage;

@@ -13,7 +13,7 @@ exports.mapEventType = {
     */
 };
 function bubbleEvent(e, type, node) {
-    var event = new LayoutEvent(e, type, node);
+    var event = new CanvasViewEvent(e, type, node);
     var current = node;
     while (current) {
         if (current.$EV && current.$EV[type]) {
@@ -27,8 +27,8 @@ function bubbleEvent(e, type, node) {
     }
 }
 exports.bubbleEvent = bubbleEvent;
-var LayoutEvent = /** @class */ (function () {
-    function LayoutEvent(originalEvent, type, target, bubbles) {
+var CanvasViewEvent = /** @class */ (function () {
+    function CanvasViewEvent(originalEvent, type, target, bubbles) {
         if (bubbles === void 0) { bubbles = true; }
         this.cancelBubble = false;
         this.originalEvent = originalEvent;
@@ -37,20 +37,20 @@ var LayoutEvent = /** @class */ (function () {
         this.type = type || originalEvent.type;
         this.cancelBubble = !bubbles;
     }
-    LayoutEvent.prototype.stopPropagation = function () {
+    CanvasViewEvent.prototype.stopPropagation = function () {
         this.cancelBubble = true;
     };
-    Object.defineProperty(LayoutEvent.prototype, "defaultPrevented", {
+    Object.defineProperty(CanvasViewEvent.prototype, "defaultPrevented", {
         get: function () {
             return this.originalEvent.defaultPrevented;
         },
         enumerable: true,
         configurable: true
     });
-    LayoutEvent.prototype.preventDefault = function () {
+    CanvasViewEvent.prototype.preventDefault = function () {
         this.originalEvent.preventDefault();
     };
-    return LayoutEvent;
+    return CanvasViewEvent;
 }());
-exports.LayoutEvent = LayoutEvent;
-//# sourceMappingURL=LayoutEvent.js.map
+exports.CanvasViewEvent = CanvasViewEvent;
+//# sourceMappingURL=CanvasViewEvent.js.map

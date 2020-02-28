@@ -105,7 +105,7 @@ function measureText(font, content) {
         cacheObj = {};
         measureTextCache.set(content, cacheObj);
     }
-    if (cacheObj[font]) {
+    else if (cacheObj[font]) {
         return cacheObj[font];
     }
     if (!_measureContext) {
