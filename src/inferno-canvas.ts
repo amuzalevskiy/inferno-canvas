@@ -1,4 +1,13 @@
-import { Component, setCreateElementFunction, render } from 'inferno';
+import {
+  Component,
+  setCreateElementFunction,
+  render, 
+  createFragment,
+  createVNode,
+  createComponentVNode,
+  createTextVNode,
+  normalizeProps
+ } from 'inferno';
 import { createElement } from 'inferno-create-element';
 import { CanvasElement } from './CanvasElement';
 import { IStyleProps, IStyleDefinition } from "./node";
@@ -112,5 +121,10 @@ export {
   createElement,
   parseStyle,
   IStyleProps,
-  IStyleDefinition
+  IStyleDefinition,
+  createFragment,
+  createVNode,
+  createComponentVNode,
+  createTextVNode,
+  normalizeProps
 };

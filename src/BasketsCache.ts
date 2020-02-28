@@ -30,9 +30,10 @@ export class BasketsCache<K, V> implements ICache<K, V>{
         this._head = this._baskets[0];
     }
     get(key: K): V | undefined {
-        // short path
-        if (this._head.has(key)) {
-            return this._head.get(key)!;
+        // short path, micro optimization, gives 0.1% speedup...
+        let value = this._head.get(key);
+        if (value || this._head.has(key)) {
+            return value!;
         }
         let len = this._baskets.length;
         for (let i = 1; i < len; i++) {

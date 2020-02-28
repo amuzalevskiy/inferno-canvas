@@ -2,6 +2,11 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 var inferno_1 = require("inferno");
 exports.Component = inferno_1.Component;
+exports.createFragment = inferno_1.createFragment;
+exports.createVNode = inferno_1.createVNode;
+exports.createComponentVNode = inferno_1.createComponentVNode;
+exports.createTextVNode = inferno_1.createTextVNode;
+exports.normalizeProps = inferno_1.normalizeProps;
 var inferno_create_element_1 = require("inferno-create-element");
 exports.createElement = inferno_create_element_1.createElement;
 var CanvasElement_1 = require("./CanvasElement");
