@@ -1,3 +1,4 @@
+import { requestAnimationFrame } from './inferno-canvas';
 export interface Renderable{
     render(): any;
 }

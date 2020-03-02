@@ -9,6 +9,7 @@ export declare class AnimationFrameHandler {
     private _views;
     private _callbacks;
     private avgCycleTimeSpent;
+    private avgReactTimeSpent;
     private avgRenderCycleTimeSpent;
     private readonly registry;
     private enableTimeReport;
@@ -18,6 +19,6 @@ export declare class AnimationFrameHandler {
     _checkEnqueued(): void;
     _pushCb(cb: RafCallback): number;
     _removeCb(index: number): void;
-    _process: (cycleStart: number) => void;
+    _process: (frameStart: number) => void;
 }
 export {};

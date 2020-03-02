@@ -29,6 +29,7 @@ import {IStyleProps, TEXT_ALIGN, VERTICAL_ALIGN, ILayoutNode} from "./node";
 import { measureText, countLines, TEXT_ALIGN_LEFT, VERTICAL_ALIGN_TOP } from "./renderUtils";
 import { CanvasElementRegistry } from "./CanvasElementRegistry";
 import { CanvasViewEvent } from "./CanvasViewEvent";
+import { TextureAtlasRegion } from "./TextureAtlas";
 
 const YGMeasureModeUndefined = 0,
     YGMeasureModeExactly = 1,
@@ -162,19 +163,12 @@ class Style implements IStyleProps {
     isTextNode: boolean = false;
 
     removeProperty(name: string) {
-        const doc = this.el._doc;
-        if (doc && !doc.dirty) {
-            this.el._doc.markDirty();
-        }
-
+        this.el.markDirty();
         this.setProperty(name, undefined);
     }
 
     setProperty(name: string, value: any) {
-        const doc = this.el._doc;
-        if (doc && !doc.dirty) {
-            this.el._doc.markDirty();
-        }
+        this.el.markDirty();
 
         (this as any)[name] = value;
         var node = this.el._yogaNode;
@@ -451,6 +445,7 @@ export const HAS_CLIPPING = 32;
 export const HAS_BORDER_RADIUS = 64;
 export const SKIP = 128;
 export const HAS_TEXT = 256;
+export const FORCE_CACHE = 512;
 
 export class CanvasElement implements ILayoutNode {
     readonly registry: CanvasElementRegistry;
@@ -459,11 +454,25 @@ export class CanvasElement implements ILayoutNode {
     public _childrenLength: number = 0;
     private _flags: number = 0;
     public _isAbsolute: boolean = false;
+    public _dirty: boolean = false;
+    public $cache: boolean = false;
+    public _cachedRender: TextureAtlasRegion | null = null;
     constructor(nodeName: string, registry: CanvasElementRegistry) {
         this.nodeName = nodeName;
         this.registry = registry;
         this._yogaNode = Node.create();
         this.style = new Style(this);
+    }
+
+    markDirty() {
+        if (!this._dirty) {
+            this._dirty = true;
+            if (this.parentNode) {
+                this.parentNode.markDirty();
+            } else if (this._doc) {
+                this._doc.markDirty()
+            }
+        }
     }
 
     getFlags() {
@@ -494,14 +503,35 @@ export class CanvasElement implements ILayoutNode {
                 (style.backgroundImage ? HAS_BACKGROUND_IMAGE : 0) |
                 (style.shadowColor && style.shadowColor !== "transparent" ? HAS_SHADOW : 0) |
                 (style.background && style.background !== "transparent" ? HAS_BACKGROUND : 0) |
-                (this.content !== undefined && this.content !== "" && style.color && style._fullFont ? HAS_TEXT : 0);
+                (this.content !== undefined && this.content !== "" && style.color && style._fullFont ? HAS_TEXT : 0) |
+                (this.$cache === true ? FORCE_CACHE : 0);
         }
         return this._flags;
     }
 
+    forceCache(enabled: boolean) {
+        this._flags = enabled ?
+            this._flags | FORCE_CACHE :
+            this._flags & ~FORCE_CACHE;
+    }
+
     free() {
+        this._freeResourcesRecursive();
         if (this._yogaNode) {
             this._yogaNode.freeRecursive();
+        }
+    }
+
+    _freeResourcesRecursive() {
+        if (this._cachedRender) {
+            this._cachedRender.setFree();
+        }
+        let children = this.children;
+        if (children) {
+            for (let i = 0; i < children.length; i++) {
+                const child = children[i];
+                child._freeResourcesRecursive();
+            }
         }
     }
 
@@ -554,14 +584,12 @@ export class CanvasElement implements ILayoutNode {
     }
 
     setAttribute(name: string, value: any) {
-        if (this._doc && !this._doc.dirty) {
-            this._doc.markDirty();
-        }
 
         (this as any)[name] = value;
         switch (name) {
             case "content":
                 this._flagsDirty = true;
+                this.markDirty();
                 // invalidate layout
                 if (this.style.isMeasureFunctionSet && !this._yogaNode.isDirty()) {
                     this._yogaNode.markDirty();
@@ -569,18 +597,17 @@ export class CanvasElement implements ILayoutNode {
 
                 this.style.setIsTextNode(true);
                 break;
+            case "$cache":
+                this._flagsDirty = true;
         }
     }
 
     removeAttribute(name: string) {
-        if (this._doc && !this._doc.dirty) {
-            this._doc.markDirty();
-        }
-
         (this as any)[name] = undefined;
         switch (name) {
             case "content":
                 this._flagsDirty = true;
+                this.markDirty();
                 // invalidate layout
                 if (!this._yogaNode.isDirty()) {
                     this._yogaNode.markDirty();
@@ -588,15 +615,15 @@ export class CanvasElement implements ILayoutNode {
 
                 this.style.setIsTextNode(false);
                 break;
+            case "$cache":
+                this._flagsDirty = true;
         }
 
     }
 
     appendChild(child: CanvasElement) {
         this._flagsDirty = true;
-        if (this._doc && !this._doc.dirty) {
-            this._doc.markDirty();
-        }
+        this.markDirty();
 
         this._verifyElementDetached(child);
 
@@ -613,9 +640,7 @@ export class CanvasElement implements ILayoutNode {
 
     insertBefore(newNode: CanvasElement, nextNode: CanvasElement) {
         this._flagsDirty = true;
-        if (this._doc && !this._doc.dirty) {
-            this._doc.markDirty();
-        }
+        this.markDirty();
 
         this._verifyElementDetached(newNode);
 
@@ -637,9 +662,7 @@ export class CanvasElement implements ILayoutNode {
 
     replaceChild(newDom: CanvasElement, lastDom: CanvasElement) {
         this._flagsDirty = true;
-        if (this._doc && !this._doc.dirty) {
-            this._doc.markDirty();
-        }
+        this.markDirty();
 
         this._verifyElementDetached(newDom);
 
@@ -658,9 +681,7 @@ export class CanvasElement implements ILayoutNode {
 
     removeChild(childNode: CanvasElement) {
         this._flagsDirty = true;
-        if (this._doc && !this._doc.dirty) {
-            this._doc.markDirty();
-        }
+        this.markDirty();
 
         // optimized, guaranteed by inferno
         // if (!this.children) {

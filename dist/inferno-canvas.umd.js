@@ -51,7 +51,6 @@
     // We need EMPTY_OBJ defined in one place.
     // Its used for comparison so we cant inline it into shared
     var EMPTY_OBJ = {};
-    var Fragment = '$F';
     function normalizeEventName(name) {
         return name.substr(2).toLowerCase();
     }
@@ -272,6 +271,35 @@
         }
         return fragment;
     }
+    function normalizeProps(vNode) {
+        var props = vNode.props;
+        if (props) {
+            var flags = vNode.flags;
+            if (flags & 481 /* Element */) {
+                if (props.children !== void 0 && isNullOrUndef(vNode.children)) {
+                    normalizeChildren(vNode, props.children);
+                }
+                if (props.className !== void 0) {
+                    vNode.className = props.className || null;
+                    props.className = undefined;
+                }
+            }
+            if (props.key !== void 0) {
+                vNode.key = props.key;
+                props.key = undefined;
+            }
+            if (props.ref !== void 0) {
+                if (flags & 8 /* ComponentFunction */) {
+                    vNode.ref = combineFrom(vNode.ref, props.ref);
+                }
+                else {
+                    vNode.ref = props.ref;
+                }
+                props.ref = undefined;
+            }
+        }
+        return vNode;
+    }
     /*
      * Fragment is different than normal vNode,
      * because when it needs to be cloned we need to clone its children too
@@ -346,22 +374,6 @@
                     result.push(n);
                 }
             }
-        }
-    }
-    function getFlagsForElementVnode(type) {
-        switch (type) {
-            case 'svg':
-                return 32 /* SvgElement */;
-            case 'input':
-                return 64 /* InputElement */;
-            case 'select':
-                return 256 /* SelectElement */;
-            case 'textarea':
-                return 128 /* TextareaElement */;
-            case Fragment:
-                return 8192 /* Fragment */;
-            default:
-                return 1 /* HtmlElement */;
         }
     }
     function normalizeChildren(vNode, children) {
@@ -1950,104 +1962,6 @@
     Component.prototype.render = function render (_nextProps, _nextState, _nextContext) {
         return null;
     };
-
-    function isNullOrUndef$1(o) {
-        return o === void 0 || o === null;
-    }
-    function isString$1(o) {
-        return typeof o === 'string';
-    }
-    function isUndefined$1(o) {
-        return o === void 0;
-    }
-
-    var componentHooks = {
-        onComponentDidMount: 1,
-        onComponentDidUpdate: 1,
-        onComponentShouldUpdate: 1,
-        onComponentWillMount: 1,
-        onComponentWillUnmount: 1,
-        onComponentWillUpdate: 1
-    };
-    function createElement(type, props, _children) {
-        var arguments$1 = arguments;
-        var children;
-        var ref = null;
-        var key = null;
-        var className = null;
-        var flags = 0;
-        var newProps;
-        var childLen = arguments.length - 2;
-        if (childLen === 1) {
-            children = _children;
-        }
-        else if (childLen > 1) {
-            children = [];
-            while (childLen-- > 0) {
-                children[childLen] = arguments$1[childLen + 2];
-            }
-        }
-        if (isString$1(type)) {
-            flags = getFlagsForElementVnode(type);
-            if (!isNullOrUndef$1(props)) {
-                newProps = {};
-                for (var prop in props) {
-                    if (prop === 'className' || prop === 'class') {
-                        className = props[prop];
-                    }
-                    else if (prop === 'key') {
-                        key = props.key;
-                    }
-                    else if (prop === 'children' && isUndefined$1(children)) {
-                        children = props.children; // always favour children args over props
-                    }
-                    else if (prop === 'ref') {
-                        ref = props.ref;
-                    }
-                    else {
-                        if (prop === 'contenteditable') {
-                            flags |= 4096 /* ContentEditable */;
-                        }
-                        newProps[prop] = props[prop];
-                    }
-                }
-            }
-        }
-        else {
-            flags = 2 /* ComponentUnknown */;
-            if (!isUndefined$1(children)) {
-                if (!props) {
-                    props = {};
-                }
-                props.children = children;
-            }
-            if (!isNullOrUndef$1(props)) {
-                newProps = {};
-                for (var prop$1 in props) {
-                    if (prop$1 === 'key') {
-                        key = props.key;
-                    }
-                    else if (prop$1 === 'ref') {
-                        ref = props.ref;
-                    }
-                    else if (componentHooks[prop$1] === 1) {
-                        if (!ref) {
-                            ref = {};
-                        }
-                        ref[prop$1] = props[prop$1];
-                    }
-                    else {
-                        newProps[prop$1] = props[prop$1];
-                    }
-                }
-            }
-            return createComponentVNode(flags, type, newProps, key, ref);
-        }
-        if (flags & 8192 /* Fragment */) {
-            return createFragment(childLen === 1 ? [children] : children, 0 /* UnknownChildren */, key);
-        }
-        return createVNode(flags, type, className, children, 0 /* UnknownChildren */, newProps, key, ref);
-    }
 
     /**
      * Copyright (c) 2014-present, Facebook, Inc.
@@ -12260,15 +12174,16 @@
             this._head = this._baskets[0];
         }
         BasketsCache.prototype.get = function (key) {
-            // short path
-            if (this._head.has(key)) {
-                return this._head.get(key);
+            // short path, micro optimization, gives 0.1% speedup...
+            var value = this._head.get(key);
+            if (value || this._head.has(key)) {
+                return value;
             }
             var len = this._baskets.length;
             for (var i = 1; i < len; i++) {
                 if (this._baskets[i].has(key)) {
-                    var value = this._baskets[i].get(key);
-                    this._head.set(key, value);
+                    var value_1 = this._baskets[i].get(key);
+                    this._head.set(key, value_1);
                     if (this._baskets[i].size > 1) {
                         this._baskets[i].delete(key);
                     }
@@ -12276,7 +12191,7 @@
                         this._removeBasket(i);
                         i--;
                     }
-                    return value;
+                    return value_1;
                 }
             }
             return;
@@ -12675,17 +12590,11 @@
             this.el = el;
         }
         Style.prototype.removeProperty = function (name) {
-            var doc = this.el._doc;
-            if (doc && !doc.dirty) {
-                this.el._doc.markDirty();
-            }
+            this.el.markDirty();
             this.setProperty(name, undefined);
         };
         Style.prototype.setProperty = function (name, value) {
-            var doc = this.el._doc;
-            if (doc && !doc.dirty) {
-                this.el._doc.markDirty();
-            }
+            this.el.markDirty();
             this[name] = value;
             var node = this.el._yogaNode;
             if (value === undefined) {
@@ -12945,16 +12854,31 @@
     var HAS_BORDER_RADIUS = 64;
     var SKIP = 128;
     var HAS_TEXT = 256;
+    var FORCE_CACHE = 512;
     var CanvasElement = /** @class */ (function () {
         function CanvasElement(nodeName, registry) {
             this._flagsDirty = false;
             this._flags = 0;
             this._isAbsolute = false;
+            this._dirty = false;
+            this.$cache = false;
+            this._cachedRender = null;
             this.nodeName = nodeName;
             this.registry = registry;
             this._yogaNode = Node$1.create();
             this.style = new Style(this);
         }
+        CanvasElement.prototype.markDirty = function () {
+            if (!this._dirty) {
+                this._dirty = true;
+                if (this.parentNode) {
+                    this.parentNode.markDirty();
+                }
+                else if (this._doc) {
+                    this._doc.markDirty();
+                }
+            }
+        };
         CanvasElement.prototype.getFlags = function () {
             if (this._flagsDirty) {
                 this._flagsDirty = false;
@@ -12979,13 +12903,32 @@
                         (style.backgroundImage ? HAS_BACKGROUND_IMAGE : 0) |
                         (style.shadowColor && style.shadowColor !== "transparent" ? HAS_SHADOW : 0) |
                         (style.background && style.background !== "transparent" ? HAS_BACKGROUND : 0) |
-                        (this.content !== undefined && this.content !== "" && style.color && style._fullFont ? HAS_TEXT : 0);
+                        (this.content !== undefined && this.content !== "" && style.color && style._fullFont ? HAS_TEXT : 0) |
+                        (this.$cache === true ? FORCE_CACHE : 0);
             }
             return this._flags;
         };
+        CanvasElement.prototype.forceCache = function (enabled) {
+            this._flags = enabled ?
+                this._flags | FORCE_CACHE :
+                this._flags & ~FORCE_CACHE;
+        };
         CanvasElement.prototype.free = function () {
+            this._freeResourcesRecursive();
             if (this._yogaNode) {
                 this._yogaNode.freeRecursive();
+            }
+        };
+        CanvasElement.prototype._freeResourcesRecursive = function () {
+            if (this._cachedRender) {
+                this._cachedRender.setFree();
+            }
+            var children = this.children;
+            if (children) {
+                for (var i = 0; i < children.length; i++) {
+                    var child = children[i];
+                    child._freeResourcesRecursive();
+                }
             }
         };
         Object.defineProperty(CanvasElement.prototype, "innerHTML", {
@@ -13033,42 +12976,40 @@
             }
         };
         CanvasElement.prototype.setAttribute = function (name, value) {
-            if (this._doc && !this._doc.dirty) {
-                this._doc.markDirty();
-            }
             this[name] = value;
             switch (name) {
                 case "content":
                     this._flagsDirty = true;
+                    this.markDirty();
                     // invalidate layout
                     if (this.style.isMeasureFunctionSet && !this._yogaNode.isDirty()) {
                         this._yogaNode.markDirty();
                     }
                     this.style.setIsTextNode(true);
                     break;
+                case "$cache":
+                    this._flagsDirty = true;
             }
         };
         CanvasElement.prototype.removeAttribute = function (name) {
-            if (this._doc && !this._doc.dirty) {
-                this._doc.markDirty();
-            }
             this[name] = undefined;
             switch (name) {
                 case "content":
                     this._flagsDirty = true;
+                    this.markDirty();
                     // invalidate layout
                     if (!this._yogaNode.isDirty()) {
                         this._yogaNode.markDirty();
                     }
                     this.style.setIsTextNode(false);
                     break;
+                case "$cache":
+                    this._flagsDirty = true;
             }
         };
         CanvasElement.prototype.appendChild = function (child) {
             this._flagsDirty = true;
-            if (this._doc && !this._doc.dirty) {
-                this._doc.markDirty();
-            }
+            this.markDirty();
             this._verifyElementDetached(child);
             if (!this.children) {
                 this.children = [];
@@ -13080,9 +13021,7 @@
         };
         CanvasElement.prototype.insertBefore = function (newNode, nextNode) {
             this._flagsDirty = true;
-            if (this._doc && !this._doc.dirty) {
-                this._doc.markDirty();
-            }
+            this.markDirty();
             this._verifyElementDetached(newNode);
             if (!this.children) {
                 this.children = [];
@@ -13101,9 +13040,7 @@
         };
         CanvasElement.prototype.replaceChild = function (newDom, lastDom) {
             this._flagsDirty = true;
-            if (this._doc && !this._doc.dirty) {
-                this._doc.markDirty();
-            }
+            this.markDirty();
             this._verifyElementDetached(newDom);
             // optimized, guaranteed by inferno
             // if (!this.children) {
@@ -13118,9 +13055,7 @@
         };
         CanvasElement.prototype.removeChild = function (childNode) {
             this._flagsDirty = true;
-            if (this._doc && !this._doc.dirty) {
-                this._doc.markDirty();
-            }
+            this.markDirty();
             // optimized, guaranteed by inferno
             // if (!this.children) {
             //     this.children = [];
@@ -13446,7 +13381,7 @@
             }
             queue.push(renderable);
             if (!animationFrameRequested) {
-                requestAnimationFrame(renderAll);
+                _requestAnimationFrame(renderAll);
                 animationFrameRequested = true;
             }
         },
@@ -13598,136 +13533,502 @@
         return CanvasViewEvent;
     }());
 
-    /*! *****************************************************************************
-    Copyright (c) Microsoft Corporation. All rights reserved.
-    Licensed under the Apache License, Version 2.0 (the "License"); you may not use
-    this file except in compliance with the License. You may obtain a copy of the
-    License at http://www.apache.org/licenses/LICENSE-2.0
-
-    THIS CODE IS PROVIDED ON AN *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
-    WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE,
-    MERCHANTABLITY OR NON-INFRINGEMENT.
-
-    See the Apache Version 2.0 License for specific language governing permissions
-    and limitations under the License.
-    ***************************************************************************** */
-
-    var __assign = function() {
-        __assign = Object.assign || function __assign(t) {
-            for (var s, i = 1, n = arguments.length; i < n; i++) {
-                s = arguments[i];
-                for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
+    var SortedArray = /** @class */ (function () {
+        function SortedArray(arg) {
+            this.items = [];
+            var type = typeof arg;
+            if (type === 'string') {
+                this.key = arg;
+                this.cmp = this.objectComparison;
             }
-            return t;
+            else if (type === 'function') {
+                this.key = null;
+                this.cmp = arg;
+            }
+            else {
+                this.key = null;
+                this.cmp = this.defaultComparison;
+            }
+        }
+        Object.defineProperty(SortedArray.prototype, "length", {
+            get: function () {
+                return this.items.length;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        SortedArray.prototype.get = function (index) {
+            return this.items[index];
         };
-        return __assign.apply(this, arguments);
-    };
+        SortedArray.prototype.insert = function (elements) {
+            var _this = this;
+            var args = [];
+            for (var _i = 1; _i < arguments.length; _i++) {
+                args[_i - 1] = arguments[_i];
+            }
+            var toInsert = (arguments.length === 1 && Array.isArray(elements))
+                ? elements.slice()
+                : Array.prototype.slice.call(arguments);
+            if (this.items.length === 0) {
+                this.items = toInsert.sort(this.cmp.bind(this));
+                return this;
+            }
+            toInsert.forEach(function (element) {
+                _this.insertOne(element);
+            });
+            return this;
+        };
+        SortedArray.prototype.remove = function (index, deleteCount) {
+            if (deleteCount === void 0) { deleteCount = 1; }
+            this.items.splice(index, deleteCount);
+            return this;
+        };
+        SortedArray.prototype.removeByValue = function (value) {
+            var _this = this;
+            if (value instanceof Array) {
+                value.forEach(function (v) { return _this.removeByValue(v); });
+                return this;
+            }
+            var found = this.getEqual(value);
+            if (found.length === 0) {
+                return this;
+            }
+            this.items.splice(found.first, found.length);
+            return this;
+        };
+        SortedArray.prototype.search = function (value) {
+            var element = this.prepareComparableValue(value);
+            var middle;
+            var min = 0;
+            var max = this.items.length - 1;
+            while (min <= max) {
+                middle = (min + max) >> 1;
+                var cmp = this.cmp(this.get(middle), element);
+                if (cmp < 0) {
+                    min = middle + 1;
+                }
+                else if (cmp > 0) {
+                    max = middle - 1;
+                }
+                else if (min !== middle) {
+                    max = middle;
+                }
+                else {
+                    return middle;
+                }
+            }
+            return -1;
+        };
+        SortedArray.prototype.has = function (value) {
+            return this.search(value) !== -1;
+        };
+        SortedArray.prototype.eq = function (value) {
+            var found = this.getEqual(value);
+            var result = new SortedArray(this.key || this.cmp);
+            result.insert((found.length === 0) ? [] : this.items.slice(found.first, found.first + found.length));
+            return result;
+        };
+        SortedArray.prototype.gt = function (value) {
+            var index = this.greaterThan(value);
+            var result = new SortedArray(this.key || this.cmp);
+            result.insert((index < 0) ? [] : this.items.slice(index));
+            return result;
+        };
+        SortedArray.prototype.lt = function (value) {
+            var index = this.lessThan(value);
+            var result = new SortedArray(this.key || this.cmp);
+            result.insert((index < 0) ? [] : this.items.slice(0, index + 1));
+            return result;
+        };
+        SortedArray.prototype.gte = function (value) {
+            var index = this.greaterThan(value, true);
+            var result = new SortedArray(this.key || this.cmp);
+            result.insert((index < 0) ? [] : this.items.slice(index));
+            return result;
+        };
+        SortedArray.prototype.lte = function (value) {
+            var index = this.lessThan(value, true);
+            var result = new SortedArray(this.key || this.cmp);
+            result.insert((index < 0) ? [] : this.items.slice(0, index + 1));
+            return result;
+        };
+        SortedArray.prototype.clear = function () {
+            this.items = [];
+            return this;
+        };
+        SortedArray.prototype.toArray = function () {
+            return this.items;
+        };
+        SortedArray.prototype.toString = function () {
+            return this.items.toString();
+        };
+        SortedArray.prototype.getEqual = function (value) {
+            var element = this.prepareComparableValue(value);
+            var result = { first: -1, length: 0 };
+            var index = this.search(element);
+            if (index === -1) {
+                return result;
+            }
+            result.first = index++;
+            var numberOfEqualValues = 1;
+            while (index < this.items.length) {
+                if (this.cmp(this.get(index), element) === 0) {
+                    numberOfEqualValues += 1;
+                }
+                else {
+                    break;
+                }
+                index += 1;
+            }
+            result.length = numberOfEqualValues;
+            return result;
+        };
+        SortedArray.prototype.greaterThan = function (value, orEqual) {
+            if (orEqual === void 0) { orEqual = false; }
+            var element = this.prepareComparableValue(value);
+            var middle;
+            var min = 0;
+            var max = this.items.length - 1;
+            while (min <= max) {
+                middle = (min + max) >> 1;
+                var cmp = this.cmp(this.get(middle), element);
+                if (cmp > 0 || (orEqual && cmp === 0)) {
+                    max = middle - 1;
+                }
+                else {
+                    min = middle + 1;
+                }
+            }
+            return (max + 1 === this.items.length) ? -1 : max + 1;
+        };
+        SortedArray.prototype.lessThan = function (value, orEqual) {
+            if (orEqual === void 0) { orEqual = false; }
+            var element = this.prepareComparableValue(value);
+            var middle;
+            var min = 0;
+            var max = this.items.length - 1;
+            while (min <= max) {
+                middle = (min + max) >> 1;
+                var cmp = this.cmp(this.get(middle), element);
+                if ((!orEqual && cmp >= 0) || (orEqual && cmp > 0)) {
+                    max = middle - 1;
+                }
+                else {
+                    min = middle + 1;
+                }
+            }
+            return (min - 1 < 0) ? -1 : min - 1;
+        };
+        SortedArray.prototype.prepareComparableValue = function (value) {
+            var element;
+            if (this.key && typeof value !== 'object') {
+                element = {};
+                element[this.key] = value;
+            }
+            else {
+                element = value;
+            }
+            return element;
+        };
+        SortedArray.prototype.defaultComparison = function (left, right) {
+            if (left < right) {
+                return -1;
+            }
+            else if (left > right) {
+                return 1;
+            }
+            return 0;
+        };
+        SortedArray.prototype.objectComparison = function (left, right) {
+            var leftValue = left[this.key];
+            var rightValue = right[this.key];
+            if (leftValue < rightValue) {
+                return -1;
+            }
+            else if (leftValue > rightValue) {
+                return 1;
+            }
+            return 0;
+        };
+        SortedArray.prototype.insertOne = function (element) {
+            var index = this.greaterThan(element);
+            if (index < 0) {
+                index = this.items.length;
+            }
+            this.items.splice(index, 0, element);
+            return this;
+        };
+        return SortedArray;
+    }());
+
+    var TextureAtlas = /** @class */ (function () {
+        function TextureAtlas(initialWidth, initialHeight) {
+            if (initialWidth === void 0) { initialWidth = 512; }
+            if (initialHeight === void 0) { initialHeight = 1024; }
+            this.canvas = document.createElement("canvas");
+            this.context2d = this.canvas.getContext("2d");
+            this.canvas.width = initialWidth;
+            this.canvas.height = initialHeight;
+            this.allocator = new TextureAtlasAllocator(initialWidth, initialHeight);
+        }
+        TextureAtlas.prototype.allocate = function (width, height) {
+            var rect = this.allocator.allocate(width, height);
+            while (!rect) {
+                this.grow();
+                rect = this.allocator.allocate(width, height);
+            }
+            return new TextureAtlasRegion(this.canvas, this.context2d, rect, rect.top, rect.left, width, height);
+        };
+        TextureAtlas.prototype.grow = function () {
+            // always grow in 2 times
+            if (this.canvas.width < this.canvas.height) {
+                var oldWidth = this.canvas.width;
+                this.canvas.width = oldWidth * 2;
+                this.allocator.register(new TextureAtlasAllocatorRect(this.allocator, null, oldWidth, 0, oldWidth, this.canvas.height));
+            }
+            else {
+                var oldHeight = this.canvas.height;
+                this.canvas.height = oldHeight * 2;
+                this.allocator.register(new TextureAtlasAllocatorRect(this.allocator, null, 0, oldHeight, this.canvas.width, oldHeight));
+            }
+            // important to log?
+            console.log("texture atlas grow to " + this.canvas.width + "x" + this.canvas.height);
+        };
+        return TextureAtlas;
+    }());
+    var TextureAtlasRegion = /** @class */ (function () {
+        function TextureAtlasRegion(canvas, context2d, rect, left, top, width, height) {
+            this.destroyed = false;
+            this.canvas = canvas;
+            this.context2d = context2d;
+            this.rect = rect;
+            this.left = left;
+            this.top = top;
+            this.width = width;
+            this.height = height;
+        }
+        TextureAtlasRegion.prototype.idDestroyed = function () {
+            return this.destroyed;
+        };
+        TextureAtlasRegion.prototype.setFree = function () {
+            this.rect.setFree();
+            this.destroyed = true;
+        };
+        return TextureAtlasRegion;
+    }());
+    var TextureAtlasAllocator = /** @class */ (function () {
+        function TextureAtlasAllocator(width, height) {
+            this.rectsByWidth = new SortedArray("square");
+            this.rectsByHeight = new SortedArray("square");
+            this.width = width;
+            this.height = height;
+            this.register(new TextureAtlasAllocatorRect(this, null, 0, 0, width, height));
+        }
+        TextureAtlasAllocator.prototype.register = function (rects) {
+            this.rectsByWidth.insert(rects);
+            this.rectsByHeight.insert(rects);
+        };
+        TextureAtlasAllocator.prototype.unregister = function (rects) {
+            this.rectsByWidth.removeByValue(rects);
+            this.rectsByHeight.removeByValue(rects);
+        };
+        /**
+         * Allocates region which size exceeds provided width and height
+         *
+         * This logic leaves unusable piece with minimal possible square
+         */
+        TextureAtlasAllocator.prototype.allocate = function (width, height) {
+            var square = width * height;
+            var bestMatch = null;
+            var minimalEstimate = Infinity;
+            var totalRects = this.rectsByWidth.length;
+            // go by width first
+            for (var i = this.rectsByWidth.greaterThan(height, true); i < totalRects; i++) {
+                var rectToCheck = this.rectsByWidth.get(i);
+                if (rectToCheck.width * height > square + minimalEstimate) {
+                    // short path
+                    break;
+                }
+                var estimate = rectToCheck.estimateAllocation(width, height);
+                if (estimate !== -1) {
+                    if (estimate < minimalEstimate) {
+                        minimalEstimate = estimate;
+                        bestMatch = rectToCheck;
+                    }
+                }
+            }
+            // go by height
+            for (var i = this.rectsByHeight.greaterThan(height, true); i < totalRects; i++) {
+                var rectToCheck = this.rectsByHeight.get(i);
+                if (width * rectToCheck.height > square + minimalEstimate) {
+                    // short path
+                    break;
+                }
+                var estimate = rectToCheck.estimateAllocation(width, height);
+                if (estimate !== -1) {
+                    if (estimate < minimalEstimate) {
+                        minimalEstimate = estimate;
+                        bestMatch = rectToCheck;
+                    }
+                }
+            }
+            return bestMatch !== null ? bestMatch.allocate(width, height) : null;
+        };
+        return TextureAtlasAllocator;
+    }());
+    var TextureAtlasAllocatorRect = /** @class */ (function () {
+        function TextureAtlasAllocatorRect(allocator, parent, left, top, width, height) {
+            this.used = true;
+            this.allocator = allocator;
+            this.parent = parent;
+            this.left = left;
+            this.top = top;
+            this.width = width;
+            this.height = height;
+            this.square = width * height;
+        }
+        TextureAtlasAllocatorRect.prototype.estimateAllocation = function (width, height) {
+            if (width > this.width || height > this.height) {
+                return -1;
+            }
+            return Math.min((this.width - width) * height, width * (this.height - height));
+        };
+        TextureAtlasAllocatorRect.prototype.allocate = function (width, height) {
+            if (width * height * 1.05 > this.width * this.height) {
+                // the sizes almost match...
+                // don't divide further...
+                this.setUsed();
+                return this;
+            }
+            if ((this.width - width) * height > width * (this.height - height)) {
+                return this.allocateDivideWidth(width, height);
+            }
+            else {
+                return this.allocateDivideHeight(width, height);
+            }
+        };
+        TextureAtlasAllocatorRect.prototype.allocateDivideWidth = function (width, height) {
+            this.children = [
+                new TextureAtlasAllocatorRect(this.allocator, this, this.left, this.top, width, height),
+                new TextureAtlasAllocatorRect(this.allocator, this, this.left + width, this.top, (this.width - width), this.height),
+                new TextureAtlasAllocatorRect(this.allocator, this, this.left, this.top + height, width, (this.height - height))
+            ];
+            this.setUsed();
+            this.allocator.register([this.children[1], this.children[2]]);
+            this.children[0].used = true;
+            return this.children[0];
+        };
+        TextureAtlasAllocatorRect.prototype.allocateDivideHeight = function (width, height) {
+            this.children = [
+                new TextureAtlasAllocatorRect(this.allocator, this, this.left, this.top, width, height),
+                new TextureAtlasAllocatorRect(this.allocator, this, this.left + width, this.top, (this.width - width), height),
+                new TextureAtlasAllocatorRect(this.allocator, this, this.left, this.top + height, this.width, (this.height - height))
+            ];
+            this.setUsed();
+            this.allocator.register([this.children[1], this.children[2]]);
+            this.children[0].used = true;
+            return this.children[0];
+        };
+        TextureAtlasAllocatorRect.prototype.setUsed = function () {
+            this.used = true;
+            this.allocator.unregister(this);
+        };
+        TextureAtlasAllocatorRect.prototype.setFree = function () {
+            this.used = false;
+            this.allocator.register(this);
+            if (this.parent) {
+                this.parent.childSetFree();
+            }
+        };
+        TextureAtlasAllocatorRect.prototype.childSetFree = function () {
+            for (var i = 0; i < this.children.length; i++) {
+                var child = this.children[i];
+                if (child.used) {
+                    return;
+                }
+            }
+            // all children isFree
+            this.allocator.unregister(this.children);
+            this.children = undefined;
+            this.setFree();
+        };
+        return TextureAtlasAllocatorRect;
+    }());
 
     /**
      * Caches images of exact size on offscreen canvas
+     * also used to cache prerendered views
      *
-     * This prevents
+     * The goal is to minimize context switches
+     * data from single canvas are copied to main canvas
      */
-    var TextureAtlas = /** @class */ (function () {
-        function TextureAtlas(maxCachedTargetHeight) {
-            var _this = this;
-            if (maxCachedTargetHeight === void 0) { maxCachedTargetHeight = 256; }
-            this.canvas = document.createElement("canvas");
-            this.context2d = this.canvas.getContext("2d");
-            this.unusedSpace = 0;
+    var TextureAtlasImageCache = /** @class */ (function () {
+        function TextureAtlasImageCache(atlas, imageCache) {
             this.cache = new BasketsCache({
                 // don't keep image too long
-                maxBaskets: 2,
+                maxBaskets: 3,
+                basketLifetime: 2500,
                 onRemove: function (value, key) {
-                    if (value.source !== _this.canvas) {
-                        // nothing to do, as it is cached on separate canvas
-                        return;
+                    if (value instanceof TextureAtlasRegion) {
+                        value.setFree();
                     }
-                    _this.unusedSpace += value.width * value.height;
-                }
+                },
             });
-            this.emptySpaceStart = 0;
-            this.partiallyFreeRows = {};
-            this.maxCachedTargetHeight = maxCachedTargetHeight;
-            this.resizeCanvas(512);
+            this.atlas = atlas;
+            this.imageCache = imageCache;
+            this.context2d = this.atlas.context2d;
         }
-        TextureAtlas.prototype.resizeCanvas = function (width) {
-            this.canvas.width = width;
-            this.canvas.height = this.maxCachedTargetHeight;
-        };
-        TextureAtlas.prototype.getImage = function (img, sourceRect, targetRect) {
-            var key = this.getKey(img, sourceRect, targetRect);
+        TextureAtlasImageCache.prototype.getImage = function (uri, sourceRect, targetRect) {
+            var key = this.getKey(uri, sourceRect, targetRect);
             var result = this.cache.get(key);
             if (!result) {
-                if (targetRect.height > this.maxCachedTargetHeight) {
-                    if (sourceRect.width === targetRect.width && sourceRect.height === targetRect.height) {
-                        // no resizing, so no need to cache resize result
-                        return __assign({ source: img }, sourceRect);
-                    }
-                    // cache on separate canvas
-                    result = this.cacheOnSeparateCanvas(key, img, sourceRect, targetRect);
-                }
-                else {
-                    result = this.cacheOnMainCanvas(key, img, sourceRect, targetRect);
-                }
+                result = this.cacheOnMainCanvas(key, uri, sourceRect, targetRect);
             }
             return result;
         };
-        TextureAtlas.prototype.getKey = function (img, sourceBox, targetBox) {
-            return img.id + 't' +
+        TextureAtlasImageCache.prototype.getKey = function (uri, sourceBox, targetBox) {
+            return uri + 't' +
                 ((targetBox.width << 13 + targetBox.height) * 67108864 /* 2 ^ 26 */ + (sourceBox.width << 13 + sourceBox.height)) +
                 "s" + (sourceBox.top << 13 + sourceBox.left);
         };
-        TextureAtlas.prototype.cacheOnSeparateCanvas = function (key, img, sourceRect, targetRect) {
-            var canvas = document.createElement("canvas");
-            canvas.width = targetRect.width;
-            canvas.height = targetRect.height;
-            canvas.getContext("2d").drawImage(img, sourceRect.left, sourceRect.top, sourceRect.width, sourceRect.height, 0, 0, targetRect.width, targetRect.height);
-            var result = {
-                source: canvas,
-                top: 0,
-                left: 0,
-                width: targetRect.width,
-                height: targetRect.height
-            };
-            this.cache.set(key, result);
-            return result;
-        };
-        TextureAtlas.prototype.cacheOnMainCanvas = function (key, img, sourceRect, targetRect) {
-            var maybeRow = this.partiallyFreeRows[targetRect.width];
-            if (!maybeRow) {
-                this.partiallyFreeRows[targetRect.width] = maybeRow = {
-                    left: this.emptySpaceStart,
-                    currentTop: 0
-                };
-                this.emptySpaceStart += targetRect.width;
+        // unused temporary...
+        // cacheOnSeparateCanvas(key: string, img: HTMLImageElement, sourceRect: IRect, targetRect: IRect): ImgSourceAndRegion {
+        //     const canvas = document.createElement("canvas");
+        //     canvas.width = targetRect.width;
+        //     canvas.height = targetRect.height;
+        //     canvas.getContext("2d")!.drawImage(
+        //         img,
+        //         sourceRect.left, sourceRect.top, sourceRect.width, sourceRect.height,
+        //         0, 0, targetRect.width, targetRect.height
+        //     );
+        //     let result = {
+        //         source: canvas,
+        //         top: 0,
+        //         left: 0,
+        //         width: targetRect.width,
+        //         height: targetRect.height
+        //     };
+        //     this.cache.set(key, result);
+        //     return result;
+        // }
+        TextureAtlasImageCache.prototype.cacheOnMainCanvas = function (key, uri, sourceRect, targetRect) {
+            var imgMaybe = this.imageCache.get(uri);
+            if (imgMaybe instanceof ImageCacheEntry) {
+                // locate place
+                var region = this.atlas.allocate(targetRect.width, targetRect.height);
+                // draw on canvas
+                this.context2d.clearRect(region.left, region.top, region.width, region.height);
+                this.context2d.drawImage(imgMaybe.image, sourceRect.left, sourceRect.top, sourceRect.width, sourceRect.height, region.left, region.top, region.width, region.height);
+                this.cache.set(key, region);
+                return region;
             }
-            var freeSpace = this.maxCachedTargetHeight - maybeRow.currentTop;
-            if (freeSpace < targetRect.height) {
-                // create new row:
-                // 1. claim unused space
-                this.unusedSpace += freeSpace * targetRect.width;
-                // 2. addRow
-                this.partiallyFreeRows[targetRect.width] = maybeRow = {
-                    left: this.emptySpaceStart,
-                    currentTop: 0
-                };
-                this.emptySpaceStart += targetRect.width;
+            else if (imgMaybe instanceof Error) {
+                this.cache.set(key, imgMaybe);
+                return imgMaybe;
             }
-            this.context2d.drawImage(img, sourceRect.left, sourceRect.top, sourceRect.width, sourceRect.height, maybeRow.left, maybeRow.currentTop, targetRect.width, targetRect.height);
-            var result = {
-                source: this.canvas,
-                top: maybeRow.currentTop,
-                left: maybeRow.left,
-                width: targetRect.width,
-                height: targetRect.height
-            };
-            maybeRow.currentTop += targetRect.height;
-            this.cache.set(key, result);
-            return result;
+            return imgMaybe;
         };
-        return TextureAtlas;
+        return TextureAtlasImageCache;
     }());
 
     var CachedCanvasContext = /** @class */ (function () {
@@ -13774,11 +14075,17 @@
 
     var DIRECTION_LTR = entryBrowser.DIRECTION_LTR, OVERFLOW_HIDDEN$1 = entryBrowser.OVERFLOW_HIDDEN, OVERFLOW_SCROLL$1 = entryBrowser.OVERFLOW_SCROLL, POSITION_TYPE_ABSOLUTE$2 = entryBrowser.POSITION_TYPE_ABSOLUTE, EDGE_LEFT$1 = entryBrowser.EDGE_LEFT, EDGE_TOP$1 = entryBrowser.EDGE_TOP, EDGE_RIGHT$1 = entryBrowser.EDGE_RIGHT, EDGE_BOTTOM$1 = entryBrowser.EDGE_BOTTOM;
     var ellipsis = String.fromCharCode(0x2026);
-    var defaultImageCache = ImageCache.createBasketsImageCache({
-        basketLifetime: 1500,
-        maxBaskets: 4
+    var imageCache = ImageCache.createBasketsImageCache({
+        basketLifetime: 2500,
+        maxBaskets: 3
     });
-    var defaultTextureAtlas = new TextureAtlas(256);
+    var imageSizeCache = new BasketsCache({
+        // image size kept for a long time
+        basketLifetime: 10000,
+        maxBaskets: 3,
+    });
+    var textureAtlas = new TextureAtlas();
+    var textureAtlasImageCache = new TextureAtlasImageCache(textureAtlas, imageCache);
     function getAncestorsAndSelf(node) {
         var ancestorsAndSelf = [];
         while (node) {
@@ -13823,18 +14130,6 @@
         }
         return sourceBox;
     }
-    /**
-     * Caches image to offscreen canvas when it needs resizing
-     */
-    function drawImageWithCache(ctx, backgroundImage, sourceRect, targetRect) {
-        // // no TextureAtlas
-        // ctx.drawImage(backgroundImage,
-        //   sourceRect.left, sourceRect.top, sourceRect.width, sourceRect.height,
-        //   targetRect.left, targetRect.top, targetRect.width, targetRect.height
-        // );
-        var spec = defaultTextureAtlas.getImage(backgroundImage, sourceRect, targetRect);
-        ctx.drawImage(spec.source, spec.left, spec.top, spec.width, spec.height, targetRect.left, targetRect.top, targetRect.width, targetRect.height);
-    }
     function isPointInNode(ctx, borderRadius, layoutLeft, layoutTop, w, h, offsetX, offsetY) {
         closedInnerBorderPath(ctx, 0, 0, 0, 0, borderRadius, layoutLeft, layoutTop, w, h);
         return ctx.isPointInPath(offsetX, offsetY) ? 1 : 0;
@@ -13878,6 +14173,7 @@
     var HAS_BORDER_RADIUS$1 = 64;
     var SKIP$1 = 128;
     var HAS_TEXT$1 = 256;
+    var FORCE_CACHE$1 = 512;
     var NEEDS_DIMENTIONS = HAS_BORDER$1 | HAS_BACKGROUND$1 | HAS_SHADOW$1 | HAS_BACKGROUND_IMAGE$1 | HAS_CLIPPING$1 | HAS_TEXT$1;
     var CanvasView = /** @class */ (function () {
         function CanvasView(canvas, spec, left, top, width, height, direction, defaultLineHeightMultiplier) {
@@ -13892,7 +14188,7 @@
                 mouseup: false
             };
             this._currentQueue = new ZIndexQueue();
-            this.queues = [];
+            this._queues = [];
             this._processEvent = function (e) {
                 var target;
                 if (e instanceof MouseEvent) {
@@ -14114,10 +14410,51 @@
             ctx.restore();
             this._removeContext();
         };
+        CanvasView.prototype._renderNodeWithCache = function (node, x, y) {
+            var yogaNode = node._yogaNode;
+            var layoutLeft = yogaNode.getComputedLeft() + x, layoutTop = yogaNode.getComputedTop() + y;
+            var region = node._cachedRender;
+            if (node._dirty || !region) {
+                var layoutWidth = yogaNode.getComputedWidth(), layoutHeight = yogaNode.getComputedHeight();
+                if (region) {
+                    if (region.width !== layoutWidth || region.height !== layoutHeight) {
+                        // sad, but need to reallocate canvas region
+                        region.setFree();
+                        region = null;
+                    }
+                }
+                if (region === null) {
+                    // create secondary context
+                    region = textureAtlas.allocate(layoutWidth, layoutHeight);
+                    node._cachedRender = region;
+                }
+                // save context
+                var oldContext = this._ctx;
+                this._ctx = region.context2d;
+                this._queues.push(this._currentQueue);
+                this._currentQueue = new ZIndexQueue();
+                var oldCachedContext = this._lastCachedContext;
+                this._lastCachedContext = new CachedCanvasContext(this._ctx, this._ctx);
+                // render
+                node.forceCache(false);
+                this._renderNode(node, region.left - layoutLeft, region.top - layoutTop);
+                node.forceCache(true);
+                // restore context
+                this._ctx = oldContext;
+                this._currentQueue = this._queues.pop();
+                this._lastCachedContext = oldCachedContext;
+                // save render
+                node._cachedRender = region;
+            }
+            this._ctx.drawImage(region.canvas, region.left, region.top, region.width, region.height, layoutLeft, layoutTop, region.width, region.height);
+        };
         CanvasView.prototype._renderNode = function (node, x, y) {
             var flags = node.getFlags();
             if (flags & SKIP$1) {
                 return;
+            }
+            if (flags && FORCE_CACHE$1) {
+                return this._renderNodeWithCache(node, x, y);
             }
             var ctx = this._ctx;
             var yogaNode = node._yogaNode;
@@ -14128,6 +14465,7 @@
             var borderLeft = hasBorder ? yogaNode.getComputedBorder(EDGE_LEFT$1) : 0, borderTop = hasBorder ? yogaNode.getComputedBorder(EDGE_TOP$1) : 0, borderRight = hasBorder ? yogaNode.getComputedBorder(EDGE_RIGHT$1) : 0, borderBottom = hasBorder ? yogaNode.getComputedBorder(EDGE_BOTTOM$1) : 0;
             var borderRadius = flags & HAS_BORDER_RADIUS$1 ? style.borderRadius : 0;
             var shouldClipChildren = flags & HAS_CLIPPING$1;
+            node._dirty = false;
             if (flags & HAS_BACKGROUND$1) {
                 this._lastCachedContext.setFillStyle(style.background);
                 if (borderRadius > 0) {
@@ -14229,25 +14567,47 @@
             }
         };
         CanvasView.prototype._renderBackgroundImage = function (style, layoutLeft, layoutTop, layoutWidth, layoutHeight, borderLeft, borderTop, borderRight, borderBottom) {
-            var imgMaybe = defaultImageCache.get(style.backgroundImage);
-            if (imgMaybe instanceof ImageCacheEntry) {
-                var cacheEntry = imgMaybe;
-                var targetRect = {
-                    left: layoutLeft + borderLeft,
-                    top: layoutTop + borderTop,
-                    width: layoutWidth -
-                        borderLeft -
-                        borderRight,
-                    height: layoutHeight -
-                        borderTop -
-                        borderBottom
-                };
-                var sourceRect = getImgBackgroundSourceRect(style, targetRect, cacheEntry.width, cacheEntry.height);
-                drawImageWithCache(this._ctx, cacheEntry.image, sourceRect, targetRect);
+            var url = style.backgroundImage;
+            var targetRect = {
+                left: layoutLeft + borderLeft,
+                top: layoutTop + borderTop,
+                width: layoutWidth -
+                    borderLeft -
+                    borderRight,
+                height: layoutHeight -
+                    borderTop -
+                    borderBottom
+            };
+            // try to get image size without accessing image itself
+            var imageSize = imageSizeCache.get(url);
+            if (!imageSize) {
+                // image was never loaded...
+                var imgMaybe = imageCache.get(url);
+                if (imgMaybe instanceof ImageCacheEntry) {
+                    // store image size
+                    imageSize = {
+                        width: imgMaybe.width,
+                        height: imgMaybe.height,
+                    };
+                    imageSizeCache.set(url, imageSize);
+                }
+                else if (imgMaybe instanceof Error) {
+                    // nothing to do
+                    return;
+                }
+                else {
+                    renderQueue.renderAfter(this, imgMaybe);
+                    return;
+                }
             }
-            else if (!(imgMaybe instanceof Error)) {
-                // plan rendering
-                renderQueue.renderAfter(this, imgMaybe);
+            var sourceRect = getImgBackgroundSourceRect(style, targetRect, imageSize.width, imageSize.height);
+            var cachedImageMaybe = textureAtlasImageCache.getImage(url, sourceRect, targetRect);
+            if (cachedImageMaybe instanceof TextureAtlasRegion) {
+                this._ctx.drawImage(cachedImageMaybe.canvas, cachedImageMaybe.left, cachedImageMaybe.top, cachedImageMaybe.width, cachedImageMaybe.height, targetRect.left, targetRect.top, targetRect.width, targetRect.height);
+            }
+            else if (!(cachedImageMaybe instanceof Error)) {
+                // should be rare case
+                renderQueue.renderAfter(this, cachedImageMaybe);
             }
         };
         CanvasView.prototype._clipNode = function (borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight) {
@@ -14256,13 +14616,13 @@
             ctx.clip();
         };
         CanvasView.prototype._addContext = function () {
-            this.queues.push(this._currentQueue);
+            this._queues.push(this._currentQueue);
             this._currentQueue = new ZIndexQueue();
             this._ctx.save();
             this._lastCachedContext = this._lastCachedContext.createNestedContext();
         };
         CanvasView.prototype._removeContext = function () {
-            this._currentQueue = this.queues.pop();
+            this._currentQueue = this._queues.pop();
             this._ctx.restore();
             this._lastCachedContext = this._lastCachedContext.getParentContext();
         };
@@ -14308,9 +14668,14 @@
             this._queued = false;
             this._views = [];
             this._callbacks = [];
-            this.avgCycleTimeSpent = 0;
+            this.avgCycleTimeSpent = 0.0001; // should never eq 0
+            this.avgReactTimeSpent = 0;
             this.avgRenderCycleTimeSpent = 0;
-            this._process = function (cycleStart) {
+            this._process = function (frameStart) {
+                var cycleStart = 0;
+                if (_this.enableTimeReport) {
+                    cycleStart = performance.now();
+                }
                 _this._queued = false;
                 _this._cycling = true;
                 var callbacks = _this._callbacks;
@@ -14319,7 +14684,7 @@
                 // call before rendering
                 for (var i = 0; i < callbacks.length; i++) {
                     var cb = callbacks[i];
-                    cb(cycleStart);
+                    cb(frameStart);
                 }
                 var renderingStart = 0;
                 if (_this.enableTimeReport) {
@@ -14342,17 +14707,40 @@
                 }
                 if (_this.enableTimeReport) {
                     var endTime = performance.now();
-                    var timeSpent = endTime - cycleStart;
-                    _this.avgCycleTimeSpent = _this.avgCycleTimeSpent * 0.995 + timeSpent * 0.005;
+                    var timeSpent = endTime - frameStart;
+                    if (_this.avgCycleTimeSpent > timeSpent) {
+                        // cold slow
+                        _this.avgCycleTimeSpent = _this.avgCycleTimeSpent * 0.995 + timeSpent * 0.005;
+                    }
+                    else {
+                        // heat fast
+                        _this.avgCycleTimeSpent = _this.avgCycleTimeSpent * 0.9 + timeSpent * 0.1;
+                    }
+                    var reactTimeSpent = renderingStart - cycleStart;
+                    if (_this.avgReactTimeSpent > reactTimeSpent) {
+                        // cold slow
+                        _this.avgReactTimeSpent = _this.avgReactTimeSpent * 0.995 + reactTimeSpent * 0.005;
+                    }
+                    else {
+                        // heat fast
+                        _this.avgReactTimeSpent = _this.avgReactTimeSpent * 0.9 + reactTimeSpent * 0.1;
+                    }
                     var renderingTimeSpent = endTime - renderingStart;
-                    _this.avgRenderCycleTimeSpent = _this.avgRenderCycleTimeSpent * 0.995 + renderingTimeSpent * 0.005;
+                    if (_this.avgRenderCycleTimeSpent > renderingTimeSpent) {
+                        // cold slow
+                        _this.avgRenderCycleTimeSpent = _this.avgRenderCycleTimeSpent * 0.995 + renderingTimeSpent * 0.005;
+                    }
+                    else {
+                        // heat fast
+                        _this.avgRenderCycleTimeSpent = _this.avgRenderCycleTimeSpent * 0.9 + renderingTimeSpent * 0.1;
+                    }
                 }
             };
             this.registry = registry;
             this.enableTimeReport = enableTimeReport;
             if (enableTimeReport) {
                 setInterval(function () {
-                    console.log("CYCLE: full: " + _this.avgCycleTimeSpent.toFixed(1) + "ms, render: " + _this.avgRenderCycleTimeSpent.toFixed(1) + "ms (" + (_this.avgRenderCycleTimeSpent / _this.avgCycleTimeSpent * 100).toFixed(0) + "%)");
+                    console.log("CYCLE: full: " + _this.avgCycleTimeSpent.toFixed(1) + "ms, react: " + _this.avgReactTimeSpent.toFixed(1) + "ms (" + (_this.avgReactTimeSpent / _this.avgCycleTimeSpent * 100).toFixed(0) + "%), render: " + _this.avgRenderCycleTimeSpent.toFixed(1) + "ms (" + (_this.avgRenderCycleTimeSpent / _this.avgCycleTimeSpent * 100).toFixed(0) + "%)");
                 }, 2000);
             }
         }
@@ -14471,8 +14859,12 @@
     exports.requestAnimationFrame = _requestAnimationFrame;
     exports.cancelAnimationFrame = _cancelAnimationFrame;
     exports.Component = Component;
-    exports.createElement = createElement;
     exports.parseStyle = parseStyle;
+    exports.createFragment = createFragment;
+    exports.createVNode = createVNode;
+    exports.createComponentVNode = createComponentVNode;
+    exports.createTextVNode = createTextVNode;
+    exports.normalizeProps = normalizeProps;
 
     Object.defineProperty(exports, '__esModule', { value: true });
 

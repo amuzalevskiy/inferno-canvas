@@ -2,6 +2,7 @@ import { YogaNode, YogaFlexDirection, YogaJustifyContent, YogaAlign, YogaPositio
 import { IStyleProps, TEXT_ALIGN, VERTICAL_ALIGN, ILayoutNode } from "./node";
 import { CanvasElementRegistry } from "./CanvasElementRegistry";
 import { CanvasViewEvent } from "./CanvasViewEvent";
+import { TextureAtlasRegion } from "./TextureAtlas";
 declare class Style implements IStyleProps {
     el: CanvasElement;
     flex?: number;
@@ -94,15 +95,22 @@ export declare const HAS_CLIPPING = 32;
 export declare const HAS_BORDER_RADIUS = 64;
 export declare const SKIP = 128;
 export declare const HAS_TEXT = 256;
+export declare const FORCE_CACHE = 512;
 export declare class CanvasElement implements ILayoutNode {
     readonly registry: CanvasElementRegistry;
     readonly nodeName: string;
     _flagsDirty: boolean;
     private _flags;
     _isAbsolute: boolean;
+    _dirty: boolean;
+    $cache: boolean;
+    _cachedRender: TextureAtlasRegion | null;
     constructor(nodeName: string, registry: CanvasElementRegistry);
+    markDirty(): void;
     getFlags(): number;
+    forceCache(enabled: boolean): void;
     free(): void;
+    _freeResourcesRecursive(): void;
     parentNode?: CanvasElement;
     _yogaNode: YogaNode;
     children: CanvasElement[] | undefined;
