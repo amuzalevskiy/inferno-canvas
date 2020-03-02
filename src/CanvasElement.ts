@@ -456,6 +456,7 @@ export class CanvasElement implements ILayoutNode {
     readonly registry: CanvasElementRegistry;
     readonly nodeName: string;
     public _flagsDirty: boolean = false;
+    public _childrenLength: number = 0;
     private _flags: number = 0;
     public _isAbsolute: boolean = false;
     constructor(nodeName: string, registry: CanvasElementRegistry) {
@@ -468,6 +469,7 @@ export class CanvasElement implements ILayoutNode {
     getFlags() {
         if (this._flagsDirty) {
             this._flagsDirty = false;
+            this._childrenLength = this.children ? this.children.length : 0;
             const style = this.style;
             if (style.display === DISPLAY_NONE) {
                 this._flags = SKIP;

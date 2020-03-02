@@ -162,7 +162,7 @@ export const HAS_BORDER_RADIUS = 64;
 export const SKIP = 128;
 export const HAS_TEXT = 256;
 
-const NEEDS_DIMENTIONS = HAS_BORDER | HAS_BACKGROUND | HAS_SHADOW | HAS_BACKGROUND_IMAGE | HAS_CLIPPING | HAS_TEXT;
+const NEEDS_DIMENSIONS = HAS_BORDER | HAS_BACKGROUND | HAS_SHADOW | HAS_BACKGROUND_IMAGE | HAS_CLIPPING | HAS_TEXT;
 
 export class CanvasView {
   public doc!: CanvasDocument;
@@ -481,11 +481,11 @@ export class CanvasView {
     const ctx = this._ctx;
     const yogaNode = node._yogaNode;
     const style = node.style;
-    const needDimentions = flags & NEEDS_DIMENTIONS;
+    const needDimensions = flags & NEEDS_DIMENSIONS;
     const layoutLeft = yogaNode.getComputedLeft() + x,
-      layoutTop = yogaNode.getComputedTop() + y,
-      layoutWidth = needDimentions ? yogaNode.getComputedWidth() : 0,
-      layoutHeight = needDimentions ? yogaNode.getComputedHeight() : 0;
+      layoutTop = yogaNode.getComputedTop() + y;
+    const layoutWidth = needDimensions ? yogaNode.getComputedWidth() : 0,
+      layoutHeight = needDimensions ? yogaNode.getComputedHeight() : 0;
 
     const hasBorder = flags & HAS_BORDER;
     const borderLeft = hasBorder ? yogaNode.getComputedBorder(EDGE_LEFT) : 0,
@@ -550,9 +550,10 @@ export class CanvasView {
     }
 
     if (flags & HAS_CHILDREN) {
-      var len = node.children!.length;
+      const children = node.children;
+      const len = node._childrenLength;
       for (var i = 0; i < len; i++) {
-        var childNode = node.children![i];
+        var childNode = children![i];
         // should be CanvasElement?
         if ((childNode as any)._isAbsolute) {
           this._currentQueue.push({
