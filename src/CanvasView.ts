@@ -30,18 +30,25 @@ import {
 import { ZIndexQueue } from "./ZIndexQueue";
 import { CanvasViewEvent, bubbleEvent, mapEventType } from "./CanvasViewEvent";
 import { CanvasElement } from "./CanvasElement";
-import { TextureAtlas } from "./TextureAtlas";
+import { TextureAtlasImageCache } from "./TextureAtlasImageCache";
 import { CanvasDocument } from "./CanvasDocument";
 import { CachedCanvasContext } from "./CachedCanvasContext";
+import { TextureAtlas, TextureAtlasRegion } from "./TextureAtlas";
+import { BasketsCache } from "./BasketsCache";
 
 const ellipsis = String.fromCharCode(0x2026);
 
-var defaultImageCache = ImageCache.createBasketsImageCache({
-  basketLifetime: 1500,
-  maxBaskets: 4
+var imageCache = ImageCache.createBasketsImageCache({
+  basketLifetime: 2500,
+  maxBaskets: 3
 });
-
-var defaultTextureAtlas = new TextureAtlas(256);
+var imageSizeCache = new BasketsCache<string, {width: number, height: number}>({
+  // image size kept for a long time
+  basketLifetime: 10000,
+  maxBaskets: 3,
+});
+var textureAtlas = new TextureAtlas();
+var textureAtlasImageCache = new TextureAtlasImageCache(textureAtlas, imageCache);
 
 interface IListenersState {
   [eventName: string]: boolean;
@@ -91,23 +98,6 @@ function getImgBackgroundSourceRect(style: IStyleProps, targetRect: IRect, imgWi
     }
   }
   return sourceBox;
-}
-
-
-/**
- * Caches image to offscreen canvas when it needs resizing
- */
-function drawImageWithCache(ctx: CanvasRenderingContext2D, backgroundImage: HTMLImageElement, sourceRect: IRect, targetRect: IRect) {
-  // // no TextureAtlas
-  // ctx.drawImage(backgroundImage,
-  //   sourceRect.left, sourceRect.top, sourceRect.width, sourceRect.height,
-  //   targetRect.left, targetRect.top, targetRect.width, targetRect.height
-  // );
-  let spec = defaultTextureAtlas.getImage(backgroundImage, sourceRect, targetRect);
-  ctx.drawImage(spec.source,
-    spec.left, spec.top, spec.width, spec.height,
-    targetRect.left, targetRect.top, targetRect.width, targetRect.height
-  );
 }
 
 function isPointInNode(ctx: CanvasRenderingContext2D, borderRadius: number, layoutLeft: number, layoutTop: number, w: number, h: number, offsetX: number, offsetY: number): number {
@@ -161,6 +151,7 @@ export const HAS_CLIPPING = 32;
 export const HAS_BORDER_RADIUS = 64;
 export const SKIP = 128;
 export const HAS_TEXT = 256;
+export const FORCE_CACHE = 512;
 
 const NEEDS_DIMENTIONS = HAS_BORDER | HAS_BACKGROUND | HAS_SHADOW | HAS_BACKGROUND_IMAGE | HAS_CLIPPING | HAS_TEXT;
 
@@ -185,7 +176,7 @@ export class CanvasView {
   };
 
   public _currentQueue: ZIndexQueue = new ZIndexQueue();
-  private queues: ZIndexQueue[] = [];
+  private _queues: ZIndexQueue[] = [];
   private _lastCachedContext: CachedCanvasContext;
 
   constructor(
@@ -469,6 +460,57 @@ export class CanvasView {
     this._removeContext();
   }
 
+  public _renderNodeWithCache(
+    node: CanvasElement,
+    x: number,
+    y: number
+  ) {
+    const yogaNode = node._yogaNode;
+    const layoutLeft = yogaNode.getComputedLeft() + x,
+      layoutTop = yogaNode.getComputedTop() + y;
+    let region = node._cachedRender;
+    if (node._dirty || !region) {
+      const layoutWidth = yogaNode.getComputedWidth(),
+        layoutHeight = yogaNode.getComputedHeight();
+      if (region) {
+        if (region.width !== layoutWidth || region.height !== layoutHeight) {
+          // sad, but need to reallocate canvas region
+          region.setFree();
+          region = null;
+        }
+      }
+      if (region === null) {
+        // create secondary context
+        region = textureAtlas.allocate(layoutWidth, layoutHeight);
+        node._cachedRender = region;
+      }
+
+      // save context
+      let oldContext = this._ctx;
+      this._ctx = region!.context2d;
+      this._queues.push(this._currentQueue);
+      this._currentQueue = new ZIndexQueue();
+      let oldCachedContext = this._lastCachedContext;
+      this._lastCachedContext = new CachedCanvasContext(this._ctx, this._ctx);
+  
+      // render
+      node.forceCache(false);
+      this._renderNode(node, region.left - layoutLeft, region.top - layoutTop);
+      node.forceCache(true);
+
+      // restore context
+      this._ctx = oldContext;
+      this._currentQueue = this._queues.pop()!;
+      this._lastCachedContext = oldCachedContext;
+
+      // save render
+      node._cachedRender = region!;
+    }
+    this._ctx.drawImage(region.canvas,
+      region.left, region.top, region.width, region.height,
+      layoutLeft, layoutTop, region.width, region.height,
+    );
+  }
   public _renderNode(
     node: CanvasElement,
     x: number,
@@ -477,6 +519,9 @@ export class CanvasView {
     const flags = node.getFlags();
     if (flags & SKIP) {
       return;
+    }
+    if (flags & FORCE_CACHE) {
+      return this._renderNodeWithCache(node, x, y);
     }
     const ctx = this._ctx;
     const yogaNode = node._yogaNode;
@@ -494,6 +539,8 @@ export class CanvasView {
       borderBottom = hasBorder ? yogaNode.getComputedBorder(EDGE_BOTTOM) : 0;
     const borderRadius = flags & HAS_BORDER_RADIUS ? style.borderRadius! : 0;
     const shouldClipChildren = flags & HAS_CLIPPING;
+
+    node._dirty = false;
 
     if (flags & HAS_BACKGROUND) {
       this._lastCachedContext.setFillStyle(style.background!);
@@ -685,27 +732,51 @@ export class CanvasView {
     layoutLeft: number, layoutTop: number, layoutWidth: number, layoutHeight: number,
     borderLeft: number, borderTop: number, borderRight: number, borderBottom: number
   ) {
-    var imgMaybe = defaultImageCache.get(style.backgroundImage!);
-    if (imgMaybe instanceof ImageCacheEntry) {
-      var cacheEntry = imgMaybe;
-      let targetRect: IRect = {
-        left: layoutLeft + borderLeft,
-        top: layoutTop + borderTop,
-        width:
-          layoutWidth -
-          borderLeft -
-          borderRight,
-        height:
-          layoutHeight -
-          borderTop -
-          borderBottom
-      };
+    let url = style.backgroundImage!;
+    let targetRect: IRect = {
+      left: layoutLeft + borderLeft,
+      top: layoutTop + borderTop,
+      width:
+        layoutWidth -
+        borderLeft -
+        borderRight,
+      height:
+        layoutHeight -
+        borderTop -
+        borderBottom
+    };
 
-      let sourceRect: IRect = getImgBackgroundSourceRect(style, targetRect, cacheEntry.width, cacheEntry.height);
-      drawImageWithCache(this._ctx, cacheEntry.image, sourceRect, targetRect);
-    } else if (!(imgMaybe instanceof Error)) {
-      // plan rendering
-      renderQueue.renderAfter(this, imgMaybe);
+    // try to get image size without accessing image itself
+    let imageSize = imageSizeCache.get(url);
+    if (!imageSize) {
+      // image was never loaded...
+      let imgMaybe = imageCache.get(url);
+      if (imgMaybe instanceof ImageCacheEntry) {
+        // store image size
+        imageSize = {
+          width: imgMaybe.width,
+          height: imgMaybe.height,
+        };
+        imageSizeCache.set(url, imageSize);
+      } else if (imgMaybe instanceof Error) {
+        // nothing to do
+        return;
+      } else {
+        renderQueue.renderAfter(this, imgMaybe);
+        return;
+      }
+    }
+
+    let sourceRect: IRect = getImgBackgroundSourceRect(style, targetRect, imageSize.width, imageSize.height);
+    let cachedImageMaybe = textureAtlasImageCache.getImage(url, sourceRect, targetRect);
+    if (cachedImageMaybe instanceof TextureAtlasRegion) {
+      this._ctx.drawImage(cachedImageMaybe.canvas,
+        cachedImageMaybe.left, cachedImageMaybe.top, cachedImageMaybe.width, cachedImageMaybe.height,
+        targetRect.left, targetRect.top, targetRect.width, targetRect.height
+      );
+    } else if (!(cachedImageMaybe instanceof Error)) {
+      // should be rare case
+      renderQueue.renderAfter(this, cachedImageMaybe);
     }
   }
 
@@ -716,14 +787,14 @@ export class CanvasView {
   }
 
   public _addContext() {
-    this.queues.push(this._currentQueue);
+    this._queues.push(this._currentQueue);
     this._currentQueue = new ZIndexQueue();
     this._ctx.save();
     this._lastCachedContext = this._lastCachedContext.createNestedContext();
   }
 
   public _removeContext() {
-    this._currentQueue = this.queues.pop()!;
+    this._currentQueue = this._queues.pop()!;
     this._ctx.restore();
     this._lastCachedContext = this._lastCachedContext.getParentContext();
   }

@@ -9,9 +9,14 @@ var AnimationFrameHandler = /** @class */ (function () {
         this._queued = false;
         this._views = [];
         this._callbacks = [];
-        this.avgCycleTimeSpent = 0;
+        this.avgCycleTimeSpent = 0.0001; // should never eq 0
+        this.avgReactTimeSpent = 0;
         this.avgRenderCycleTimeSpent = 0;
-        this._process = function (cycleStart) {
+        this._process = function (frameStart) {
+            var cycleStart = 0;
+            if (_this.enableTimeReport) {
+                cycleStart = performance.now();
+            }
             _this._queued = false;
             _this._cycling = true;
             var callbacks = _this._callbacks;
@@ -20,7 +25,7 @@ var AnimationFrameHandler = /** @class */ (function () {
             // call before rendering
             for (var i = 0; i < callbacks.length; i++) {
                 var cb = callbacks[i];
-                cb(cycleStart);
+                cb(frameStart);
             }
             var renderingStart = 0;
             if (_this.enableTimeReport) {
@@ -43,17 +48,40 @@ var AnimationFrameHandler = /** @class */ (function () {
             }
             if (_this.enableTimeReport) {
                 var endTime = performance.now();
-                var timeSpent = endTime - cycleStart;
-                _this.avgCycleTimeSpent = _this.avgCycleTimeSpent * 0.995 + timeSpent * 0.005;
+                var timeSpent = endTime - frameStart;
+                if (_this.avgCycleTimeSpent > timeSpent) {
+                    // cold slow
+                    _this.avgCycleTimeSpent = _this.avgCycleTimeSpent * 0.995 + timeSpent * 0.005;
+                }
+                else {
+                    // heat fast
+                    _this.avgCycleTimeSpent = _this.avgCycleTimeSpent * 0.9 + timeSpent * 0.1;
+                }
+                var reactTimeSpent = renderingStart - cycleStart;
+                if (_this.avgReactTimeSpent > reactTimeSpent) {
+                    // cold slow
+                    _this.avgReactTimeSpent = _this.avgReactTimeSpent * 0.995 + reactTimeSpent * 0.005;
+                }
+                else {
+                    // heat fast
+                    _this.avgReactTimeSpent = _this.avgReactTimeSpent * 0.9 + reactTimeSpent * 0.1;
+                }
                 var renderingTimeSpent = endTime - renderingStart;
-                _this.avgRenderCycleTimeSpent = _this.avgRenderCycleTimeSpent * 0.995 + renderingTimeSpent * 0.005;
+                if (_this.avgRenderCycleTimeSpent > renderingTimeSpent) {
+                    // cold slow
+                    _this.avgRenderCycleTimeSpent = _this.avgRenderCycleTimeSpent * 0.995 + renderingTimeSpent * 0.005;
+                }
+                else {
+                    // heat fast
+                    _this.avgRenderCycleTimeSpent = _this.avgRenderCycleTimeSpent * 0.9 + renderingTimeSpent * 0.1;
+                }
             }
         };
         this.registry = registry;
         this.enableTimeReport = enableTimeReport;
         if (enableTimeReport) {
             setInterval(function () {
-                console.log("CYCLE: full: " + _this.avgCycleTimeSpent.toFixed(1) + "ms, render: " + _this.avgRenderCycleTimeSpent.toFixed(1) + "ms (" + (_this.avgRenderCycleTimeSpent / _this.avgCycleTimeSpent * 100).toFixed(0) + "%)");
+                console.log("CYCLE: full: " + _this.avgCycleTimeSpent.toFixed(1) + "ms, react: " + _this.avgReactTimeSpent.toFixed(1) + "ms (" + (_this.avgReactTimeSpent / _this.avgCycleTimeSpent * 100).toFixed(0) + "%), render: " + _this.avgRenderCycleTimeSpent.toFixed(1) + "ms (" + (_this.avgRenderCycleTimeSpent / _this.avgCycleTimeSpent * 100).toFixed(0) + "%)");
             }, 2000);
         }
     }

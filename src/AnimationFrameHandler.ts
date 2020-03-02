@@ -9,7 +9,8 @@ export class AnimationFrameHandler {
   private _queued = false;
   private _views: CanvasView[] = [];
   private _callbacks: RafCallback[] = [];
-  private avgCycleTimeSpent = 0;
+  private avgCycleTimeSpent = 0.0001; // should never eq 0
+  private avgReactTimeSpent = 0;
   private avgRenderCycleTimeSpent = 0;
   private readonly registry: CanvasElementRegistry;
   private enableTimeReport: boolean;
@@ -18,7 +19,7 @@ export class AnimationFrameHandler {
     this.enableTimeReport = enableTimeReport;
     if (enableTimeReport) {
       setInterval(() => {
-        console.log("CYCLE: full: " + this.avgCycleTimeSpent.toFixed(1) + "ms, render: " + this.avgRenderCycleTimeSpent.toFixed(1) + "ms (" + (this.avgRenderCycleTimeSpent / this.avgCycleTimeSpent * 100).toFixed(0) + "%)");
+        console.log("CYCLE: full: " + this.avgCycleTimeSpent.toFixed(1) + "ms, react: " + this.avgReactTimeSpent.toFixed(1) + "ms (" + (this.avgReactTimeSpent / this.avgCycleTimeSpent * 100).toFixed(0) + "%), render: " + this.avgRenderCycleTimeSpent.toFixed(1) + "ms (" + (this.avgRenderCycleTimeSpent / this.avgCycleTimeSpent * 100).toFixed(0) + "%)");
       }, 2000);
     }
   }
@@ -59,7 +60,11 @@ export class AnimationFrameHandler {
     this._indexToCbMap.delete(index);
   }
   
-  _process = (cycleStart: number) => {
+  _process = (frameStart: number) => {
+    let cycleStart: number = 0;
+    if (this.enableTimeReport) {
+      cycleStart = performance.now()
+    }
     this._queued = false;
     this._cycling = true;
     let callbacks = this._callbacks;
@@ -69,7 +74,7 @@ export class AnimationFrameHandler {
     // call before rendering
     for (let i = 0; i < callbacks.length; i++) {
       const cb = callbacks[i];
-      cb(cycleStart);
+      cb(frameStart);
     }
 
     let renderingStart: number = 0;
@@ -97,10 +102,32 @@ export class AnimationFrameHandler {
     }
     if (this.enableTimeReport) {
       let endTime = performance.now();
-      let timeSpent = endTime - cycleStart;
-      this.avgCycleTimeSpent = this.avgCycleTimeSpent * 0.995 + timeSpent * 0.005;
+      let timeSpent = endTime - frameStart;
+      if (this.avgCycleTimeSpent > timeSpent) {
+        // cold slow
+        this.avgCycleTimeSpent = this.avgCycleTimeSpent * 0.995 + timeSpent * 0.005;
+      } else {
+        // heat fast
+        this.avgCycleTimeSpent = this.avgCycleTimeSpent * 0.9 + timeSpent * 0.1;
+      }
+      
+      let reactTimeSpent = renderingStart - cycleStart;
+      if (this.avgReactTimeSpent > reactTimeSpent) {
+        // cold slow
+        this.avgReactTimeSpent = this.avgReactTimeSpent * 0.995 + reactTimeSpent * 0.005;
+      } else {
+        // heat fast
+        this.avgReactTimeSpent = this.avgReactTimeSpent * 0.9 + reactTimeSpent * 0.1;
+      }
+
       let renderingTimeSpent = endTime - renderingStart;
-      this.avgRenderCycleTimeSpent = this.avgRenderCycleTimeSpent * 0.995 + renderingTimeSpent * 0.005;
+      if (this.avgRenderCycleTimeSpent > renderingTimeSpent) {
+        // cold slow
+        this.avgRenderCycleTimeSpent = this.avgRenderCycleTimeSpent * 0.995 + renderingTimeSpent * 0.005;
+      } else {
+        // heat fast
+        this.avgRenderCycleTimeSpent = this.avgRenderCycleTimeSpent * 0.9 + renderingTimeSpent * 0.1;
+      }
     }
   }
 }

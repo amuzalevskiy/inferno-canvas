@@ -21,15 +21,16 @@ var BasketsCache = /** @class */ (function () {
         this._head = this._baskets[0];
     }
     BasketsCache.prototype.get = function (key) {
-        // short path
-        if (this._head.has(key)) {
-            return this._head.get(key);
+        // short path, micro optimization, gives 0.1% speedup...
+        var value = this._head.get(key);
+        if (value || this._head.has(key)) {
+            return value;
         }
         var len = this._baskets.length;
         for (var i = 1; i < len; i++) {
             if (this._baskets[i].has(key)) {
-                var value = this._baskets[i].get(key);
-                this._head.set(key, value);
+                var value_1 = this._baskets[i].get(key);
+                this._head.set(key, value_1);
                 if (this._baskets[i].size > 1) {
                     this._baskets[i].delete(key);
                 }
@@ -37,7 +38,7 @@ var BasketsCache = /** @class */ (function () {
                     this._removeBasket(i);
                     i--;
                 }
-                return value;
+                return value_1;
             }
         }
         return;

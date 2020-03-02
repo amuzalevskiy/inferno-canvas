@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+var inferno_canvas_1 = require("./inferno-canvas");
 var map = new Map();
 var queue = [];
 var animationFrameRequested = false;
@@ -17,7 +18,7 @@ exports.renderQueue = {
         }
         queue.push(renderable);
         if (!animationFrameRequested) {
-            requestAnimationFrame(renderAll);
+            inferno_canvas_1.requestAnimationFrame(renderAll);
             animationFrameRequested = true;
         }
     },

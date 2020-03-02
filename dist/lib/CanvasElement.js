@@ -52,17 +52,11 @@ var Style = /** @class */ (function () {
         this.el = el;
     }
     Style.prototype.removeProperty = function (name) {
-        var doc = this.el._doc;
-        if (doc && !doc.dirty) {
-            this.el._doc.markDirty();
-        }
+        this.el.markDirty();
         this.setProperty(name, undefined);
     };
     Style.prototype.setProperty = function (name, value) {
-        var doc = this.el._doc;
-        if (doc && !doc.dirty) {
-            this.el._doc.markDirty();
-        }
+        this.el.markDirty();
         this[name] = value;
         var node = this.el._yogaNode;
         if (value === undefined) {
@@ -322,16 +316,31 @@ exports.HAS_CLIPPING = 32;
 exports.HAS_BORDER_RADIUS = 64;
 exports.SKIP = 128;
 exports.HAS_TEXT = 256;
+exports.FORCE_CACHE = 512;
 var CanvasElement = /** @class */ (function () {
     function CanvasElement(nodeName, registry) {
         this._flagsDirty = false;
         this._flags = 0;
         this._isAbsolute = false;
+        this._dirty = false;
+        this.$cache = false;
+        this._cachedRender = null;
         this.nodeName = nodeName;
         this.registry = registry;
         this._yogaNode = Node.create();
         this.style = new Style(this);
     }
+    CanvasElement.prototype.markDirty = function () {
+        if (!this._dirty) {
+            this._dirty = true;
+            if (this.parentNode) {
+                this.parentNode.markDirty();
+            }
+            else if (this._doc) {
+                this._doc.markDirty();
+            }
+        }
+    };
     CanvasElement.prototype.getFlags = function () {
         if (this._flagsDirty) {
             this._flagsDirty = false;
@@ -356,13 +365,32 @@ var CanvasElement = /** @class */ (function () {
                     (style.backgroundImage ? exports.HAS_BACKGROUND_IMAGE : 0) |
                     (style.shadowColor && style.shadowColor !== "transparent" ? exports.HAS_SHADOW : 0) |
                     (style.background && style.background !== "transparent" ? exports.HAS_BACKGROUND : 0) |
-                    (this.content !== undefined && this.content !== "" && style.color && style._fullFont ? exports.HAS_TEXT : 0);
+                    (this.content !== undefined && this.content !== "" && style.color && style._fullFont ? exports.HAS_TEXT : 0) |
+                    (this.$cache === true ? exports.FORCE_CACHE : 0);
         }
         return this._flags;
     };
+    CanvasElement.prototype.forceCache = function (enabled) {
+        this._flags = enabled ?
+            this._flags | exports.FORCE_CACHE :
+            this._flags & ~exports.FORCE_CACHE;
+    };
     CanvasElement.prototype.free = function () {
+        this._freeResourcesRecursive();
         if (this._yogaNode) {
             this._yogaNode.freeRecursive();
+        }
+    };
+    CanvasElement.prototype._freeResourcesRecursive = function () {
+        if (this._cachedRender) {
+            this._cachedRender.setFree();
+        }
+        var children = this.children;
+        if (children) {
+            for (var i = 0; i < children.length; i++) {
+                var child = children[i];
+                child._freeResourcesRecursive();
+            }
         }
     };
     Object.defineProperty(CanvasElement.prototype, "innerHTML", {
@@ -410,42 +438,40 @@ var CanvasElement = /** @class */ (function () {
         }
     };
     CanvasElement.prototype.setAttribute = function (name, value) {
-        if (this._doc && !this._doc.dirty) {
-            this._doc.markDirty();
-        }
         this[name] = value;
         switch (name) {
             case "content":
                 this._flagsDirty = true;
+                this.markDirty();
                 // invalidate layout
                 if (this.style.isMeasureFunctionSet && !this._yogaNode.isDirty()) {
                     this._yogaNode.markDirty();
                 }
                 this.style.setIsTextNode(true);
                 break;
+            case "$cache":
+                this._flagsDirty = true;
         }
     };
     CanvasElement.prototype.removeAttribute = function (name) {
-        if (this._doc && !this._doc.dirty) {
-            this._doc.markDirty();
-        }
         this[name] = undefined;
         switch (name) {
             case "content":
                 this._flagsDirty = true;
+                this.markDirty();
                 // invalidate layout
                 if (!this._yogaNode.isDirty()) {
                     this._yogaNode.markDirty();
                 }
                 this.style.setIsTextNode(false);
                 break;
+            case "$cache":
+                this._flagsDirty = true;
         }
     };
     CanvasElement.prototype.appendChild = function (child) {
         this._flagsDirty = true;
-        if (this._doc && !this._doc.dirty) {
-            this._doc.markDirty();
-        }
+        this.markDirty();
         this._verifyElementDetached(child);
         if (!this.children) {
             this.children = [];
@@ -457,9 +483,7 @@ var CanvasElement = /** @class */ (function () {
     };
     CanvasElement.prototype.insertBefore = function (newNode, nextNode) {
         this._flagsDirty = true;
-        if (this._doc && !this._doc.dirty) {
-            this._doc.markDirty();
-        }
+        this.markDirty();
         this._verifyElementDetached(newNode);
         if (!this.children) {
             this.children = [];
@@ -478,9 +502,7 @@ var CanvasElement = /** @class */ (function () {
     };
     CanvasElement.prototype.replaceChild = function (newDom, lastDom) {
         this._flagsDirty = true;
-        if (this._doc && !this._doc.dirty) {
-            this._doc.markDirty();
-        }
+        this.markDirty();
         this._verifyElementDetached(newDom);
         // optimized, guaranteed by inferno
         // if (!this.children) {
@@ -495,9 +517,7 @@ var CanvasElement = /** @class */ (function () {
     };
     CanvasElement.prototype.removeChild = function (childNode) {
         this._flagsDirty = true;
-        if (this._doc && !this._doc.dirty) {
-            this._doc.markDirty();
-        }
+        this.markDirty();
         // optimized, guaranteed by inferno
         // if (!this.children) {
         //     this.children = [];
