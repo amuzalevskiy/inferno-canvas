@@ -320,6 +320,7 @@ exports.FORCE_CACHE = 512;
 var CanvasElement = /** @class */ (function () {
     function CanvasElement(nodeName, registry) {
         this._flagsDirty = false;
+        this._childrenLength = 0;
         this._flags = 0;
         this._isAbsolute = false;
         this._dirty = false;
@@ -344,6 +345,7 @@ var CanvasElement = /** @class */ (function () {
     CanvasElement.prototype.getFlags = function () {
         if (this._flagsDirty) {
             this._flagsDirty = false;
+            this._childrenLength = this.children ? this.children.length : 0;
             var style = this.style;
             if (style.display === DISPLAY_NONE) {
                 this._flags = exports.SKIP;

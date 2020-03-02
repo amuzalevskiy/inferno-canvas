@@ -466,8 +466,8 @@ export class CanvasView {
     y: number
   ) {
     const yogaNode = node._yogaNode;
-    const layoutLeft = yogaNode.getComputedLeft() + x,
-      layoutTop = yogaNode.getComputedTop() + y;
+    const yogaLeft = yogaNode.getComputedLeft(),
+      yogaTop = yogaNode.getComputedTop();
     let region = node._cachedRender;
     if (node._dirty || !region) {
       const layoutWidth = yogaNode.getComputedWidth(),
@@ -487,7 +487,7 @@ export class CanvasView {
 
       // save context
       let oldContext = this._ctx;
-      this._ctx = region!.context2d;
+      this._ctx = region.context2d;
       this._queues.push(this._currentQueue);
       this._currentQueue = new ZIndexQueue();
       let oldCachedContext = this._lastCachedContext;
@@ -495,7 +495,8 @@ export class CanvasView {
   
       // render
       node.forceCache(false);
-      this._renderNode(node, region.left - layoutLeft, region.top - layoutTop);
+      this._ctx.clearRect(region.left, region.top, region.width, region.height);
+      this._renderNode(node, region.left - yogaLeft, region.top - yogaTop);
       node.forceCache(true);
 
       // restore context
@@ -504,11 +505,11 @@ export class CanvasView {
       this._lastCachedContext = oldCachedContext;
 
       // save render
-      node._cachedRender = region!;
+      node._cachedRender = region;
     }
     this._ctx.drawImage(region.canvas,
       region.left, region.top, region.width, region.height,
-      layoutLeft, layoutTop, region.width, region.height,
+      yogaLeft + x, yogaTop + y, region.width, region.height,
     );
   }
   public _renderNode(
@@ -521,7 +522,8 @@ export class CanvasView {
       return;
     }
     if (flags & FORCE_CACHE) {
-      return this._renderNodeWithCache(node, x, y);
+      this._renderNodeWithCache(node, x, y);
+      return;
     }
     const ctx = this._ctx;
     const yogaNode = node._yogaNode;

@@ -19,8 +19,8 @@ export class TextureAtlas {
             this.canvas,
             this.context2d,
             rect,
-            rect.top,
             rect.left,
+            rect.top,
             width,
             height
         );

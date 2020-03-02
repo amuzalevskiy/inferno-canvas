@@ -100,6 +100,7 @@ export declare class CanvasElement implements ILayoutNode {
     readonly registry: CanvasElementRegistry;
     readonly nodeName: string;
     _flagsDirty: boolean;
+    _childrenLength: number;
     private _flags;
     _isAbsolute: boolean;
     _dirty: boolean;

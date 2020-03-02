@@ -112,7 +112,7 @@ exports.HAS_BORDER_RADIUS = 64;
 exports.SKIP = 128;
 exports.HAS_TEXT = 256;
 exports.FORCE_CACHE = 512;
-var NEEDS_DIMENTIONS = exports.HAS_BORDER | exports.HAS_BACKGROUND | exports.HAS_SHADOW | exports.HAS_BACKGROUND_IMAGE | exports.HAS_CLIPPING | exports.HAS_TEXT;
+var NEEDS_DIMENSIONS = exports.HAS_BORDER | exports.HAS_BACKGROUND | exports.HAS_SHADOW | exports.HAS_BACKGROUND_IMAGE | exports.HAS_CLIPPING | exports.HAS_TEXT;
 var CanvasView = /** @class */ (function () {
     function CanvasView(canvas, spec, left, top, width, height, direction, defaultLineHeightMultiplier) {
         var _this = this;
@@ -391,14 +391,15 @@ var CanvasView = /** @class */ (function () {
         if (flags & exports.SKIP) {
             return;
         }
-        if (flags && exports.FORCE_CACHE) {
+        if (flags & exports.FORCE_CACHE) {
             return this._renderNodeWithCache(node, x, y);
         }
         var ctx = this._ctx;
         var yogaNode = node._yogaNode;
         var style = node.style;
-        var needDimentions = flags & NEEDS_DIMENTIONS;
-        var layoutLeft = yogaNode.getComputedLeft() + x, layoutTop = yogaNode.getComputedTop() + y, layoutWidth = needDimentions ? yogaNode.getComputedWidth() : 0, layoutHeight = needDimentions ? yogaNode.getComputedHeight() : 0;
+        var needDimensions = flags & NEEDS_DIMENSIONS;
+        var layoutLeft = yogaNode.getComputedLeft() + x, layoutTop = yogaNode.getComputedTop() + y;
+        var layoutWidth = needDimensions ? yogaNode.getComputedWidth() : 0, layoutHeight = needDimensions ? yogaNode.getComputedHeight() : 0;
         var hasBorder = flags & exports.HAS_BORDER;
         var borderLeft = hasBorder ? yogaNode.getComputedBorder(EDGE_LEFT) : 0, borderTop = hasBorder ? yogaNode.getComputedBorder(EDGE_TOP) : 0, borderRight = hasBorder ? yogaNode.getComputedBorder(EDGE_RIGHT) : 0, borderBottom = hasBorder ? yogaNode.getComputedBorder(EDGE_BOTTOM) : 0;
         var borderRadius = flags & exports.HAS_BORDER_RADIUS ? style.borderRadius : 0;
@@ -439,9 +440,10 @@ var CanvasView = /** @class */ (function () {
             this._clipNode(borderLeft, borderTop, borderRight, borderBottom, borderRadius, layoutLeft, layoutTop, layoutWidth, layoutHeight);
         }
         if (flags & exports.HAS_CHILDREN) {
-            var len = node.children.length;
+            var children = node.children;
+            var len = node._childrenLength;
             for (var i = 0; i < len; i++) {
-                var childNode = node.children[i];
+                var childNode = children[i];
                 // should be CanvasElement?
                 if (childNode._isAbsolute) {
                     this._currentQueue.push({
