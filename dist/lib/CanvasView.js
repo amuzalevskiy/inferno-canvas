@@ -111,7 +111,7 @@ exports.HAS_CLIPPING = 32;
 exports.HAS_BORDER_RADIUS = 64;
 exports.SKIP = 128;
 exports.HAS_TEXT = 256;
-exports.FORCE_CACHE = 512;
+// export const FORCE_CACHE = 512;
 var NEEDS_DIMENSIONS = exports.HAS_BORDER | exports.HAS_BACKGROUND | exports.HAS_SHADOW | exports.HAS_BACKGROUND_IMAGE | exports.HAS_CLIPPING | exports.HAS_TEXT;
 var CanvasView = /** @class */ (function () {
     function CanvasView(canvas, spec, left, top, width, height, direction, defaultLineHeightMultiplier) {
@@ -348,52 +348,63 @@ var CanvasView = /** @class */ (function () {
         ctx.restore();
         this._removeContext();
     };
-    CanvasView.prototype._renderNodeWithCache = function (node, x, y) {
-        var yogaNode = node._yogaNode;
-        var layoutLeft = yogaNode.getComputedLeft() + x, layoutTop = yogaNode.getComputedTop() + y;
-        var region = node._cachedRender;
-        if (node._dirty || !region) {
-            var layoutWidth = yogaNode.getComputedWidth(), layoutHeight = yogaNode.getComputedHeight();
-            if (region) {
-                if (region.width !== layoutWidth || region.height !== layoutHeight) {
-                    // sad, but need to reallocate canvas region
-                    region.setFree();
-                    region = null;
-                }
-            }
-            if (region === null) {
-                // create secondary context
-                region = textureAtlas.allocate(layoutWidth, layoutHeight);
-                node._cachedRender = region;
-            }
-            // save context
-            var oldContext = this._ctx;
-            this._ctx = region.context2d;
-            this._queues.push(this._currentQueue);
-            this._currentQueue = new ZIndexQueue_1.ZIndexQueue();
-            var oldCachedContext = this._lastCachedContext;
-            this._lastCachedContext = new CachedCanvasContext_1.CachedCanvasContext(this._ctx, this._ctx);
-            // render
-            node.forceCache(false);
-            this._renderNode(node, region.left - layoutLeft, region.top - layoutTop);
-            node.forceCache(true);
-            // restore context
-            this._ctx = oldContext;
-            this._currentQueue = this._queues.pop();
-            this._lastCachedContext = oldCachedContext;
-            // save render
-            node._cachedRender = region;
-        }
-        this._ctx.drawImage(region.canvas, region.left, region.top, region.width, region.height, layoutLeft, layoutTop, region.width, region.height);
-    };
+    // public _renderNodeWithCache(
+    //   node: CanvasElement,
+    //   x: number,
+    //   y: number
+    // ) {
+    //   const yogaNode = node._yogaNode;
+    //   const yogaLeft = yogaNode.getComputedLeft(),
+    //     yogaTop = yogaNode.getComputedTop();
+    //   let region = node._cachedRender;
+    //   if (node._dirty || !region) {
+    //     const layoutWidth = yogaNode.getComputedWidth(),
+    //       layoutHeight = yogaNode.getComputedHeight();
+    //     if (region) {
+    //       if (region.width !== layoutWidth || region.height !== layoutHeight) {
+    //         // sad, but need to reallocate canvas region
+    //         region.setFree();
+    //         region = null;
+    //       }
+    //     }
+    //     if (region === null) {
+    //       // create secondary context
+    //       region = textureAtlas.allocate(layoutWidth, layoutHeight);
+    //       node._cachedRender = region;
+    //     }
+    //     // save context
+    //     let oldContext = this._ctx;
+    //     this._ctx = region.context2d;
+    //     this._queues.push(this._currentQueue);
+    //     this._currentQueue = new ZIndexQueue();
+    //     let oldCachedContext = this._lastCachedContext;
+    //     this._lastCachedContext = new CachedCanvasContext(this._ctx, this._ctx);
+    //     // render
+    //     node.forceCache(false);
+    //     this._ctx.clearRect(region.left, region.top, region.width, region.height);
+    //     this._renderNode(node, region.left - yogaLeft, region.top - yogaTop);
+    //     node.forceCache(true);
+    //     // restore context
+    //     this._ctx = oldContext;
+    //     this._currentQueue = this._queues.pop()!;
+    //     this._lastCachedContext = oldCachedContext;
+    //     // save render
+    //     node._cachedRender = region;
+    //   }
+    //   this._ctx.drawImage(region.canvas,
+    //     region.left, region.top, region.width, region.height,
+    //     yogaLeft + x, yogaTop + y, region.width, region.height,
+    //   );
+    // }
     CanvasView.prototype._renderNode = function (node, x, y) {
         var flags = node.getFlags();
         if (flags & exports.SKIP) {
             return;
         }
-        if (flags & exports.FORCE_CACHE) {
-            return this._renderNodeWithCache(node, x, y);
-        }
+        // if (flags & FORCE_CACHE) {
+        //   this._renderNodeWithCache(node, x, y);
+        //   return;
+        // }
         var ctx = this._ctx;
         var yogaNode = node._yogaNode;
         var style = node.style;

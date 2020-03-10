@@ -445,7 +445,7 @@ export const HAS_CLIPPING = 32;
 export const HAS_BORDER_RADIUS = 64;
 export const SKIP = 128;
 export const HAS_TEXT = 256;
-export const FORCE_CACHE = 512;
+// export const FORCE_CACHE = 512;
 
 export class CanvasElement implements ILayoutNode {
     readonly registry: CanvasElementRegistry;
@@ -503,17 +503,17 @@ export class CanvasElement implements ILayoutNode {
                 (style.backgroundImage ? HAS_BACKGROUND_IMAGE : 0) |
                 (style.shadowColor && style.shadowColor !== "transparent" ? HAS_SHADOW : 0) |
                 (style.background && style.background !== "transparent" ? HAS_BACKGROUND : 0) |
-                (this.content !== undefined && this.content !== "" && style.color && style._fullFont ? HAS_TEXT : 0) |
-                (this.$cache === true ? FORCE_CACHE : 0);
+                (this.content !== undefined && this.content !== "" && style.color && style._fullFont ? HAS_TEXT : 0);
+                // (this.$cache === true ? FORCE_CACHE : 0);
         }
         return this._flags;
     }
 
-    forceCache(enabled: boolean) {
-        this._flags = enabled ?
-            this._flags | FORCE_CACHE :
-            this._flags & ~FORCE_CACHE;
-    }
+    // forceCache(enabled: boolean) {
+    //     this._flags = enabled ?
+    //         this._flags | FORCE_CACHE :
+    //         this._flags & ~FORCE_CACHE;
+    // }
 
     free() {
         this._freeResourcesRecursive();

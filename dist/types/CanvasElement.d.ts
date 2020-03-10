@@ -95,7 +95,6 @@ export declare const HAS_CLIPPING = 32;
 export declare const HAS_BORDER_RADIUS = 64;
 export declare const SKIP = 128;
 export declare const HAS_TEXT = 256;
-export declare const FORCE_CACHE = 512;
 export declare class CanvasElement implements ILayoutNode {
     readonly registry: CanvasElementRegistry;
     readonly nodeName: string;
@@ -109,7 +108,6 @@ export declare class CanvasElement implements ILayoutNode {
     constructor(nodeName: string, registry: CanvasElementRegistry);
     markDirty(): void;
     getFlags(): number;
-    forceCache(enabled: boolean): void;
     free(): void;
     _freeResourcesRecursive(): void;
     parentNode?: CanvasElement;

@@ -17,7 +17,7 @@ var TextureAtlas = /** @class */ (function () {
             this.grow();
             rect = this.allocator.allocate(width, height);
         }
-        return new TextureAtlasRegion(this.canvas, this.context2d, rect, rect.top, rect.left, width, height);
+        return new TextureAtlasRegion(this.canvas, this.context2d, rect, rect.left, rect.top, width, height);
     };
     TextureAtlas.prototype.grow = function () {
         // always grow in 2 times

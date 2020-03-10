@@ -11,7 +11,6 @@ export declare const HAS_CLIPPING = 32;
 export declare const HAS_BORDER_RADIUS = 64;
 export declare const SKIP = 128;
 export declare const HAS_TEXT = 256;
-export declare const FORCE_CACHE = 512;
 export declare class CanvasView {
     doc: CanvasDocument;
     private _spec;
@@ -47,7 +46,6 @@ export declare class CanvasView {
     private _trackMouseEnterAndLeave;
     private _layout;
     render(): void;
-    _renderNodeWithCache(node: CanvasElement, x: number, y: number): void;
     _renderNode(node: CanvasElement, x: number, y: number): void;
     private _renderShadow;
     private _renderText;

@@ -316,7 +316,7 @@ exports.HAS_CLIPPING = 32;
 exports.HAS_BORDER_RADIUS = 64;
 exports.SKIP = 128;
 exports.HAS_TEXT = 256;
-exports.FORCE_CACHE = 512;
+// export const FORCE_CACHE = 512;
 var CanvasElement = /** @class */ (function () {
     function CanvasElement(nodeName, registry) {
         this._flagsDirty = false;
@@ -367,16 +367,16 @@ var CanvasElement = /** @class */ (function () {
                     (style.backgroundImage ? exports.HAS_BACKGROUND_IMAGE : 0) |
                     (style.shadowColor && style.shadowColor !== "transparent" ? exports.HAS_SHADOW : 0) |
                     (style.background && style.background !== "transparent" ? exports.HAS_BACKGROUND : 0) |
-                    (this.content !== undefined && this.content !== "" && style.color && style._fullFont ? exports.HAS_TEXT : 0) |
-                    (this.$cache === true ? exports.FORCE_CACHE : 0);
+                    (this.content !== undefined && this.content !== "" && style.color && style._fullFont ? exports.HAS_TEXT : 0);
+            // (this.$cache === true ? FORCE_CACHE : 0);
         }
         return this._flags;
     };
-    CanvasElement.prototype.forceCache = function (enabled) {
-        this._flags = enabled ?
-            this._flags | exports.FORCE_CACHE :
-            this._flags & ~exports.FORCE_CACHE;
-    };
+    // forceCache(enabled: boolean) {
+    //     this._flags = enabled ?
+    //         this._flags | FORCE_CACHE :
+    //         this._flags & ~FORCE_CACHE;
+    // }
     CanvasElement.prototype.free = function () {
         this._freeResourcesRecursive();
         if (this._yogaNode) {
